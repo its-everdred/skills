@@ -13,7 +13,7 @@ A structured way to run a deep review of a codebase that is too large for one pa
 
 **Two phases joined by a handoff `/goal`:**
 
-1. **Plan (collaborative)** — you and the developer agree on scope, the menu of review forms, how many passes each focus gets, and which skill drives each pass. This phase ends by handing the developer a copy-paste **`/goal`**.
+1. **Plan (collaborative)** — **kick off with `/ce-brainstorm`**, which drives steps 1–5: scope, the menu of review forms, how many passes each focus gets, and which skill drives each pass. Ends by handing the developer a copy-paste **`/goal`**.
 2. **Execute (autonomous)** — the developer pastes the `/goal` back; the agent runs every pass, verifies, synthesizes tickets, and schedules waves, to completion.
 
 ## Before you start (tell the developer)
@@ -21,7 +21,7 @@ A structured way to run a deep review of a codebase that is too large for one pa
 Two prerequisites materially change the quality of this review — surface them before Phase 1:
 
 - **Use the strongest model in the strongest mode.** This review fans out dozens of subagents and multi-step workflows and depends on deep reasoning per pass. Recommend the developer run the most capable model available and its most powerful orchestration mode — e.g. **ultracode** (maximal reasoning effort + workflow orchestration). On a lighter model/mode the review is slower and shallower; say so and offer to proceed anyway.
-- **Install diverse, powerful skills.** The method's leverage comes from a *different* lens per pass. If few relevant engineering/security/domain skills are installed, recommend a skill pack first (see Suggested lineup); otherwise fall back to role-prompted general agents and tell the dev that's weaker.
+- **Install the recommended skills — [compound-engineering](https://github.com/EveryInc/compound-engineering-plugin) first.** This method is built on it: `/ce-brainstorm` runs the planning phase, and `/ce-code-review` plus its persona reviewers (`ce-adversarial-reviewer`, `ce-security-reviewer`, `ce-correctness-reviewer`, `ce-data-integrity-guardian`, `ce-scope-guardian-reviewer`, …) supply most of the lenses. Add complementary packs (engineering-skills, ethskills) for the non-CE lenses (see Suggested lineup). If compound-engineering isn't installed, recommend installing it before proceeding — without it the method degrades to role-prompted general agents, which is materially weaker.
 
 ## When to use
 
@@ -37,6 +37,8 @@ Two prerequisites materially change the quality of this review — surface them 
 - You need a quick gut-check, not a backlog.
 
 ## The 10 steps
+
+**Steps 1–5 are the Plan phase — drive them with `/ce-brainstorm`. Steps 6–10 are the Execute phase — run from the emitted `/goal`.**
 
 | # | Step | Mechanism |
 |---|------|-----------|
@@ -60,24 +62,31 @@ Two prerequisites materially change the quality of this review — surface them 
 - **Conflict-minimizing waves.** Tickets are scheduled by *file overlap*, not just hard dependencies: two tickets that edit the same file go in different waves so parallel branches merge cleanly. Hot files (edited by many tickets) drive serialization — accept many small waves over a few conflicting ones.
 - **Each pass is a workflow.** If the runtime has a workflow/orchestration tool, make each pass a workflow that fans out by surface and ends in a merge step that writes the files. If not, run subagents sequentially and write the files yourself. Either way, **per-file commits + a draft PR** at the end.
 
-## Suggested skill lineup (agnostic)
+## Suggested skill lineup (compound-engineering first)
 
-Assign a different lens to each pass. This is a *suggested* mapping — substitute whatever the runtime has installed.
+This method is built around **[compound-engineering](https://github.com/EveryInc/compound-engineering-plugin)**: `/ce-brainstorm` runs the planning phase, and `/ce-code-review` plus its persona reviewers supply most of the review lenses. Use the CE lens as the recommended driver for each pass, and add a complementary lens from another pack to keep the passes diverse — diversity is what makes cumulative passes surface *different* classes of issue.
 
-| Focus of the pass | Suggested lens (examples) |
-|---|---|
-| Broad baseline | a general code-review skill, or built-in `/code-review` |
-| Domain/business-logic safety | a domain skill (e.g. `ethskills:security` for DeFi) |
-| Adversarial / attacker view | `engineering-skills:red-team`, `engineering-skills:adversarial-reviewer` |
-| Auth / secrets / boundaries | `engineering-skills:security-pen-testing`, built-in `/security-review` |
-| Numeric / data-integrity | `engineering-skills:senior-backend`, a data-integrity reviewer |
-| Public API / contracts / types | `engineering-advanced-skills:api-design-reviewer` |
-| Supply chain / dependencies | `engineering-advanced-skills:dependency-auditor` |
-| Test-coverage adequacy | `engineering-skills:senior-qa` + a testing skill |
-| Verify + completeness | an adversarial-reviewer skill |
-| Frontend / UX safety | a frontend-ux skill + `engineering-skills:senior-frontend` |
+| Pass focus | Compound-engineering lens (recommended) | Complementary lens |
+|---|---|---|
+| Planning (steps 1–5) | `/ce-brainstorm` | — |
+| Broad baseline | `/ce-code-review` | built-in `/code-review` |
+| Correctness / logic | `ce-correctness-reviewer` | `engineering-skills:senior-backend` |
+| Adversarial / attacker | `ce-adversarial-reviewer` | `engineering-skills:red-team` |
+| Security / auth / secrets | `ce-security-reviewer`, `ce-security-sentinel` | `engineering-skills:security-pen-testing`, built-in `/security-review` |
+| Data-integrity / numeric | `ce-data-integrity-guardian` | `engineering-skills:senior-backend` |
+| Public API / contracts | `ce-api-contract-reviewer` | `engineering-advanced-skills:api-design-reviewer` |
+| Architecture / patterns | `ce-architecture-strategist` | — |
+| Test-coverage adequacy | `ce-testing-reviewer` | `engineering-skills:senior-qa` |
+| Supply chain / dependencies | — | `engineering-advanced-skills:dependency-auditor` |
+| Domain (e.g. DeFi) | — | `ethskills:security`, `ethskills:wallets` |
+| Frontend / UX safety | — | `ethskills:frontend-ux`, `engineering-skills:senior-frontend` |
+| Plan / scope review | `ce-scope-guardian-reviewer` | — |
+| External best-practice research | `ce-best-practices-researcher` | — |
+| Verify + completeness | `ce-adversarial-reviewer` (skeptic per finding) | — |
 
-**If the agent is thin on skills:** before running, tell the developer plainly — *"This review is far stronger with a diverse set of engineering/security skills installed. You currently have few. Consider installing an engineering-skills / security / domain skill pack first; otherwise I'll fall back to role-prompted general agents, which is weaker."* Then fall back gracefully: each "lens" becomes a general agent prompted to *act as* that specialist.
+The `ce-*` reviewers are compound-engineering persona agents — `/ce-code-review` spawns them internally, and they're also dispatchable directly as agents.
+
+**If the recommended packs aren't installed:** install **compound-engineering** first — it is the backbone. Add **engineering-skills / engineering-advanced-skills** and a domain pack (e.g. **ethskills**) for the complementary lenses. Absent these, fall back gracefully — each lens becomes a general agent told to *act as* that specialist — and tell the developer plainly that's materially weaker.
 
 ## Sizing
 
@@ -102,6 +111,6 @@ Phase A's last act is to hand the developer a single copy-paste `/goal` that enc
 
 ## Quick reference
 
-1. Align scope → 2. Research forms → 3. Size passes → 4. Map skills → 5. Write prompts + **emit `/goal`** → *(dev pastes `/goal`)* → 6. Run passes (cumulative, file-logged) → 7. Verify + complete → 8. Tickets (severity + complexity 1–5) → 9. Conflict-free waves (verified) → 10. Compact, commit per-file, draft PR.
+**Steps 1–5 via `/ce-brainstorm`:** 1. Align scope → 2. Research forms → 3. Size passes → 4. Map skills → 5. Write prompts + **emit `/goal`** → *(dev pastes `/goal`)* → **steps 6–10 from the `/goal`:** 6. Run passes (cumulative, file-logged) → 7. Verify + complete → 8. Tickets (severity + complexity 1–5) → 9. Conflict-free waves (verified) → 10. Compact, commit per-file, draft PR.
 
 Templates for the standing preamble, the per-pass runner, the verify pass, ticket synthesis, wave scheduling, and the `/goal` live in [templates.md](templates.md).

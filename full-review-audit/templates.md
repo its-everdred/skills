@@ -2,6 +2,8 @@
 
 Reusable shapes for the `full-review-audit` skill. Adapt paths, skill names, and surfaces to the repo and runtime. Pseudocode uses a generic `agent()` / `parallel()` / workflow vocabulary; map it to your runtime's orchestration tool (or to sequential subagent dispatch if there is none).
 
+> **Planning (steps 1–5) is run with `/ce-brainstorm`.** The default lens fill-ins below are compound-engineering skills — `/ce-code-review` and the `ce-*` persona reviewers — with complementary engineering-skills / ethskills lenses for diversity.
+
 ---
 
 ## 1. Standing-rules preamble (prepended to every pass)
