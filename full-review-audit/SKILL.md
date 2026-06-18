@@ -14,7 +14,7 @@ A structured way to run a deep review of a codebase that is too large for one pa
 **Two phases joined by a handoff `/goal`:**
 
 1. **Plan (collaborative)** — **kick off with `/ce-brainstorm`**, which drives steps 1–5: scope, the menu of review forms, how many passes each focus gets, and which skill drives each pass. Ends by handing the developer a copy-paste **`/goal`**.
-2. **Execute (autonomous)** — the developer pastes the `/goal` back; the agent runs every pass, verifies, synthesizes tickets, and schedules waves, to completion.
+2. **Execute (autonomous)** — the developer pastes the `/goal` back; the agent runs every pass, verifies, synthesizes tickets, schedules waves, opens a draft PR, and finally asks the developer to review the tickets and offers to open them as repo issues.
 
 ## Before you start (tell the developer)
 
@@ -52,6 +52,7 @@ Two prerequisites materially change the quality of this review — surface them 
 | 8 | **Boil findings into tickets** | Cluster the ledger into coherent tickets (bundle shared root causes), one doc each with **severity + complexity 1–5**, drop demoted findings, and mark any that should *augment an existing issue* rather than create a new one. |
 | 9 | **Schedule conflict-minimizing waves** | Order tickets so **no two in a wave edit the same file** (minimize merge conflict), priority chokepoints first; then *independently* verify zero collisions. |
 | 10 | **Stay lean, hand off, persist** | Log to files at healthy seams; compact with handoff notes near context limits; commit each artifact and open a draft PR. |
+| 11 | **Review & offer to file** | End by asking the developer to review the full ticket list (`docs/tickets/_INDEX.md`), then offer to open the tickets as repo issues — deduping against existing issues first, and filing nothing without explicit go-ahead. |
 
 ## Key mechanisms (what makes it work)
 
@@ -111,6 +112,6 @@ Phase A's last act is to hand the developer a single copy-paste `/goal` that enc
 
 ## Quick reference
 
-**Steps 1–5 via `/ce-brainstorm`:** 1. Align scope → 2. Research forms → 3. Size passes → 4. Map skills → 5. Write prompts + **emit `/goal`** → *(dev pastes `/goal`)* → **steps 6–10 from the `/goal`:** 6. Run passes (cumulative, file-logged) → 7. Verify + complete → 8. Tickets (severity + complexity 1–5) → 9. Conflict-free waves (verified) → 10. Compact, commit per-file, draft PR.
+**Steps 1–5 via `/ce-brainstorm`:** 1. Align scope → 2. Research forms → 3. Size passes → 4. Map skills → 5. Write prompts + **emit `/goal`** → *(dev pastes `/goal`)* → **steps 6–11 from the `/goal`:** 6. Run passes (cumulative, file-logged) → 7. Verify + complete → 8. Tickets (severity + complexity 1–5) → 9. Conflict-free waves (verified) → 10. Compact, commit per-file, draft PR → 11. Ask dev to review tickets + offer to file as repo issues (dedup first).
 
 Templates for the standing preamble, the per-pass runner, the verify pass, ticket synthesis, wave scheduling, and the `/goal` live in [templates.md](templates.md).

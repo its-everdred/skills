@@ -167,7 +167,10 @@ a later dedup phase).
 
 Persist: per-file commits on a new branch, push, open a DRAFT PR. Nothing merged.
 
+Finally: ask me to review the full ticket list (docs/tickets/_INDEX.md), then offer to open the tickets as
+repo issues — dedupe against existing issues before filing any, and file nothing without my explicit go-ahead.
+
 <any open product decision, with its default — e.g. "Decision X: defaulted to <A>; flag <B> in the ticket for sign-off.">
 
-Ends when: <N> review-pass logs + the ledger + the docs/tickets/ set (with _INDEX.md) all exist and the draft PR is open.
+Ends when: <N> review-pass logs + the ledger + the docs/tickets/ set (with _INDEX.md) all exist, the draft PR is open, and you've asked me to review the tickets and offered to file them as repo issues.
 ```
