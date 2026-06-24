@@ -6,7 +6,7 @@ set -euo pipefail
 # pushes it, and opens a new PR with the original title/body.
 
 usage() {
-  echo "Usage: ./reopen.sh <pr-url> [target-repo] [--dry-run] [--title]"
+  echo "Usage: ./reopen.sh <pr-url> [target-repo] [--dry-run] [--title] [--target-issue N]"
   echo ""
   echo "  pr-url       Full GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)"
   echo "  target-repo  Optional repo to open the new PR against, as 'owner/repo' or a full"
@@ -14,6 +14,9 @@ usage() {
   echo "  --dry-run    Show what would happen without pushing or creating the PR"
   echo "  --title      Name the branch from the first 3 words of the PR title"
   echo "               (e.g. your-user/fix-validation-handling) instead of the PR number"
+  echo "  --target-issue N"
+  echo "               Prefix the branch with the target issue number and rewrite common"
+  echo "               closing/reference issue links in the PR body to #N"
   exit 1
 }
 
@@ -25,20 +28,42 @@ shift
 DRY_RUN=false
 USE_TITLE=false
 TARGET_ARG=""
-for arg in "$@"; do
-  case "$arg" in
+TARGET_ISSUE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --dry-run) DRY_RUN=true ;;
     --title) USE_TITLE=true ;;
-    -h|--help) usage ;;
-    *)
-      if [[ -n "$TARGET_ARG" ]]; then
-        echo "Error: unexpected extra argument: $arg"
+    --target-issue|--issue)
+      shift
+      if [[ $# -eq 0 || "$1" == --* ]]; then
+        echo "Error: --target-issue requires a numeric issue number."
         usage
       fi
-      TARGET_ARG="$arg"
+      TARGET_ISSUE="$1"
+      ;;
+    --target-issue=*|--issue=*)
+      TARGET_ISSUE="${1#*=}"
+      ;;
+    -h|--help) usage ;;
+    --*)
+      echo "Error: unknown option: $1"
+      usage
+      ;;
+    *)
+      if [[ -n "$TARGET_ARG" ]]; then
+        echo "Error: unexpected extra argument: $1"
+        usage
+      fi
+      TARGET_ARG="$1"
       ;;
   esac
+  shift
 done
+
+if [[ -n "$TARGET_ISSUE" && ! "$TARGET_ISSUE" =~ ^[0-9]+$ ]]; then
+  echo "Error: --target-issue must be numeric."
+  exit 1
+fi
 
 # Parse owner/repo and PR number from URL
 if [[ "$PR_URL" =~ github\.com/([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
@@ -95,7 +120,17 @@ echo "    Branch:   $HEAD_REF"
 echo "    Base:     $BASE_REF"
 echo "    Commits:  $COMMIT_COUNT"
 echo "    Your user: $MY_USER"
+if [[ -n "$TARGET_ISSUE" ]]; then
+  echo "    Target issue: #$TARGET_ISSUE"
+fi
 echo ""
+
+if [[ -n "$TARGET_ISSUE" ]]; then
+  if ! gh issue view "$TARGET_ISSUE" --repo "$TARGET_REPO" >/dev/null 2>&1; then
+    echo "Error: target issue #$TARGET_ISSUE was not found in $TARGET_REPO."
+    exit 1
+  fi
+fi
 
 # New branch name, prefix with your username to avoid collision. By default use
 # only the last path segment of the source branch (e.g. "feature/fix" -> "your-user/fix").
@@ -103,11 +138,24 @@ echo ""
 # (e.g. "Fix validation handling..." -> "your-user/fix-validation-handling").
 if $USE_TITLE; then
   SLUG=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//; s/-$//' | cut -d- -f1-3)
-  NEW_BRANCH="$MY_USER/$SLUG"
 else
-  NEW_BRANCH="$MY_USER/${HEAD_REF##*/}"
+  SLUG=$(echo "${HEAD_REF##*/}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//; s/-$//')
 fi
+if [[ -n "$TARGET_ISSUE" ]]; then
+  SLUG="$TARGET_ISSUE-$SLUG"
+fi
+NEW_BRANCH="$MY_USER/$SLUG"
 echo "==> New branch will be: $NEW_BRANCH"
+
+PR_BODY="$BODY"
+if [[ -n "$TARGET_ISSUE" ]]; then
+  REWRITTEN_BODY=$(TARGET_ISSUE="$TARGET_ISSUE" perl -0pe 's/\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?|references)\s+#\d+/$1 #$ENV{TARGET_ISSUE}/gi' <<< "$PR_BODY")
+  if [[ "$REWRITTEN_BODY" == "$PR_BODY"$'\n' ]]; then
+    PR_BODY="Refs #$TARGET_ISSUE"$'\n\n'"$PR_BODY"
+  else
+    PR_BODY="$REWRITTEN_BODY"
+  fi
+fi
 
 # Check we're in a git repo that matches
 CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || true)
@@ -149,6 +197,9 @@ echo ""
 if $DRY_RUN; then
   echo "[DRY RUN] Would create branch '$NEW_BRANCH' from origin/main"
   echo "[DRY RUN] Would cherry-pick the above commits"
+  if [[ -n "$TARGET_ISSUE" ]]; then
+    echo "[DRY RUN] Would rewrite common PR body issue references to #$TARGET_ISSUE"
+  fi
   echo "[DRY RUN] Would push branch to origin and open PR on $TARGET_REPO titled: $TITLE"
   git branch -D "pr-$PR_NUMBER-temp" 2>/dev/null
   exit 0
@@ -185,8 +236,6 @@ done
 # Push
 echo "==> Pushing $NEW_BRANCH to origin..."
 git push -u origin "$NEW_BRANCH"
-
-PR_BODY="$BODY"
 
 # Create the PR
 echo "==> Opening PR..."
