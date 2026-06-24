@@ -5,7 +5,7 @@ description: Replay a source pull request's exact GitHub PR commits onto a fresh
 
 # Reopen PR
 
-Promote a reviewed pull request from one repository into a new draft pull request on another repository. The bundled `reopen.sh` script reads the source PR metadata, fetches only the exact commits GitHub reports for that PR, cherry-picks them onto the target repository's `origin/main`, pushes a new branch, and opens a draft PR against the target repository's `main`.
+Promote a reviewed pull request from one repository into a new draft pull request on another repository. The bundled `reopen.sh` script reads the source PR metadata, fetches only the exact commits GitHub reports for that PR, cherry-picks them onto the target repository's `origin/main`, pushes a new branch, and opens a draft PR against the target repository's `main` with a sanitized copy of the source body.
 
 When given `--target-issue N`, the script also prefixes the branch with `N` and rewrites common closing/reference issue links in the PR body to `#N`.
 
@@ -39,9 +39,9 @@ Use this after a source PR has been reviewed and explicitly approved for promoti
    /path/to/reopen.sh <source-pr-url> <target-owner/target-repo> --title --target-issue <issue-number>
    ```
 
-5. Inspect the new PR body. If `--target-issue` was used, common closing/reference issue links should already point at the target issue. Manually review any other source-repository references that were not part of a closing/reference phrase.
+5. Inspect the new PR body. If `--target-issue` was used, common closing/reference issue links should already point at the target issue. Exact source PR backlinks should be stripped so the target PR does not mention the source PR.
 
-6. Record the source PR, target issue, and new target PR mapping wherever the project tracks promotion status.
+6. Record the source PR, target issue, and new target PR mapping wherever the project tracks promotion status, outside the target PR body or comments.
 
 7. Return the target checkout to the previous branch if needed.
 
@@ -52,4 +52,4 @@ Use this after a source PR has been reviewed and explicitly approved for promoti
 - Run one PR at a time. The script changes branches in the target checkout.
 - If a cherry-pick conflicts, the script aborts the cherry-pick, deletes the new branch, and returns to the original branch.
 - Always dry-run after changing the source PR, because the exact PR commit list may have changed.
-- `--target-issue` only rewrites common closing/reference phrases such as `Closes #123`, `Fixes #123`, `Resolves #123`, and `Refs #123`. It does not rewrite every issue-like string in the body.
+- `--target-issue` rewrites common closing/reference phrases such as `Closes #123`, `Fixes owner/repo#123`, `Resolves https://github.com/owner/repo/issues/123`, and `Refs https://github.com/owner/repo/pull/123`. It does not rewrite every issue-like string in the body.

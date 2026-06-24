@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Reopen a GitHub PR from your own account.
 # Takes a PR URL, fetches the branch, cherry-picks all commits onto a new branch,
-# pushes it, and opens a new PR with the original title/body.
+# pushes it, and opens a new PR with the original title and sanitized body.
 
 usage() {
   echo "Usage: ./reopen.sh <pr-url> [target-repo] [--dry-run] [--title] [--target-issue N]"
@@ -149,13 +149,28 @@ echo "==> New branch will be: $NEW_BRANCH"
 
 PR_BODY="$BODY"
 if [[ -n "$TARGET_ISSUE" ]]; then
-  REWRITTEN_BODY=$(TARGET_ISSUE="$TARGET_ISSUE" perl -0pe 's/\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?|references)\s+#\d+/$1 #$ENV{TARGET_ISSUE}/gi' <<< "$PR_BODY")
+  REWRITTEN_BODY=$(SOURCE_REPO="$FULL_REPO" TARGET_ISSUE="$TARGET_ISSUE" perl -0pe '
+    my $repo = quotemeta($ENV{SOURCE_REPO});
+    my $ref = qr/(?:#\d+|$repo\#\d+|https:\/\/github\.com\/$repo\/(?:issues|pull)\/\d+)/;
+    s/\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?|references)\s+$ref/$1 #$ENV{TARGET_ISSUE}/gi;
+  ' <<< "$PR_BODY")
   if [[ "$REWRITTEN_BODY" == "$PR_BODY"$'\n' ]]; then
     PR_BODY="Refs #$TARGET_ISSUE"$'\n\n'"$PR_BODY"
   else
     PR_BODY="$REWRITTEN_BODY"
   fi
 fi
+
+PR_BODY=$(SOURCE_REPO="$FULL_REPO" SOURCE_PR="$PR_NUMBER" perl -0pe '
+  my $repo = quotemeta($ENV{SOURCE_REPO});
+  my $pr = quotemeta($ENV{SOURCE_PR});
+  s{^[^\n]*(?:https://github\.com/$repo/pull/$pr|$repo\#$pr)[^\n]*\n?}{}gim;
+  s{https://github\.com/$repo/pull/$pr\b}{}gi;
+  s{\b$repo\#$pr\b}{}gi;
+  s{\n{3,}}{\n\n}g;
+  s{\A[ \t\n]+}{};
+  s{[ \t\n]+\z}{\n};
+' <<< "$PR_BODY")
 
 # Check we're in a git repo that matches
 CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || true)
