@@ -433,7 +433,9 @@ listener_args+=(--thread "$THREAD")
 $ALLOW_ANY_AUTHOR && listener_args+=(--allow-any-author)
 $AUTONOMOUS && listener_args+=(--autonomous)
 $DRY_RUN && listener_args+=(--dry-run)
-listener_args+=("${IGNORE_ARGS[@]}")
+if [[ ${#IGNORE_ARGS[@]} -gt 0 ]]; then
+  listener_args+=("${IGNORE_ARGS[@]}")
+fi
 
 smee_args=(npx -y "$SMEE_CLIENT_PACKAGE" --url "$SMEE_URL" --target "http://127.0.0.1:$PORT$WEBHOOK_PATH")
 
