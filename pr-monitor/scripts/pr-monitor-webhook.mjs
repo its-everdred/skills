@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 
@@ -22,6 +22,8 @@ Options:
   --author LOGIN           Only wake for comments from this login.
   --allow-any-author       Wake for any comment author. Use only for trusted repos.
   --ignore-author LOGIN    Ignore comments from this login. Repeatable.
+  --catch-up-existing      On startup, wake for existing unhandled review threads.
+  --no-baseline-existing   Do not mark current review comments as already seen.
   --autonomous             Prompt Codex to reply first, then implement if needed.
   --dry-run                Log the resume prompt without running codex.
   --max-body-bytes N       Maximum webhook payload size. Default: 1048576.
@@ -39,6 +41,8 @@ function parseArgs(argv) {
     ignoreAuthors: [],
     allowUnsigned: false,
     allowAnyAuthor: false,
+    baselineExisting: true,
+    catchUpExisting: false,
     autonomous: false,
     dryRun: false,
     event: "",
@@ -76,6 +80,8 @@ function parseArgs(argv) {
     else if (arg === "--allow-any-author") args.allowAnyAuthor = true;
     else if (arg === "--ignore-author") args.ignoreAuthors.push(next());
     else if (arg.startsWith("--ignore-author=")) args.ignoreAuthors.push(arg.slice(16));
+    else if (arg === "--catch-up-existing") args.catchUpExisting = true;
+    else if (arg === "--no-baseline-existing") args.baselineExisting = false;
     else if (arg === "--autonomous") args.autonomous = true;
     else if (arg === "--dry-run") args.dryRun = true;
     else if (arg === "--max-body-bytes") args.maxBodyBytes = Number(next());
@@ -119,6 +125,13 @@ async function readSeen(file) {
 
 async function markSeen(file, key) {
   await appendFile(file, `${key}\n`);
+}
+
+async function markSeenMany(file, keys) {
+  if (!keys.length) return;
+  const seen = await readSeen(file);
+  const unseen = keys.filter((key) => !seen.has(key));
+  if (unseen.length) await appendFile(file, `${unseen.join("\n")}\n`);
 }
 
 function verifySignature(secret, body, signature) {
@@ -235,6 +248,29 @@ function normalizeEvent(eventName, delivery, payload, targetPr) {
   return null;
 }
 
+function normalizeExistingReviewComment(comment, targetPr) {
+  return {
+    key: `pull_request_review_comment:${comment.id}`,
+    eventName: "pull_request_review_comment",
+    delivery: `existing:${comment.id}`,
+    type: "inline-review-comment",
+    action: "created",
+    author: comment.user?.login || "",
+    authorAssociation: comment.author_association || "",
+    body: comment.body || "",
+    url: comment.html_url || "",
+    path: comment.path || "",
+    line: comment.line || comment.original_line || null,
+    commentId: comment.id || null,
+    rootCommentId: rootCommentId(comment),
+    nodeId: comment.node_id || "",
+    prUrl: targetPr.url,
+    repo: `${targetPr.owner}/${targetPr.repo}`,
+    prNumber: targetPr.number,
+    createdAt: comment.created_at || new Date().toISOString(),
+  };
+}
+
 function shouldWake(event, args) {
   if (!event) return { ok: false, reason: "ignored-event" };
   if (event.body.includes(AGENT_REPLY_MARKER)) return { ok: false, reason: "agent-reply" };
@@ -247,6 +283,9 @@ function shouldWake(event, args) {
 
 function buildPrompt(event, replyHelper, args) {
   const location = event.path ? `${event.path}${event.line ? `:${event.line}` : ""}` : "PR conversation";
+  const wakeDescription = event.catchUp
+    ? "An existing GitHub PR comment was found during pr-monitor catch-up."
+    : "A new GitHub PR comment was posted and pr-monitor is waking this Codex session.";
   const replyCommand = event.rootCommentId
     ? `For inline review comments, use this helper to reply on the exact thread: ${replyHelper} "${event.prUrl}" ${event.rootCommentId} --body-file <path>`
     : `This event does not have an inline review thread reply endpoint. If you reply on GitHub, use a PR conversation comment that links back to ${event.url || event.prUrl}.`;
@@ -254,7 +293,7 @@ function buildPrompt(event, replyHelper, args) {
     ? "Inspect enough context to classify the comment, then reply concisely on GitHub before implementation. If it only needs an answer, stop after the reply. If it requests a valid code change, reply with the plan, then implement, run relevant tests, push, and follow up on the same thread."
     : "Inspect the request and prepare a concise response or fix plan in this Codex thread. Do not push or reply on GitHub unless the local operator asks.";
 
-  return `A new GitHub PR comment was posted and pr-monitor is waking this Codex session.
+  return `${wakeDescription}
 
 First, acknowledge this comment in the Codex thread. Then inspect the current code and PR diff. ${actionMode} Never resolve review threads unless the user explicitly asks.
 
@@ -307,10 +346,35 @@ async function runCodexResume(args, prompt, logFile) {
   });
 }
 
-async function processEvent({ args, pr, eventName, delivery, body, contentType, stateDir, replyHelper }) {
+async function handleEvent({ args, event, stateDir, replyHelper }) {
   const logFile = path.join(stateDir, "events.jsonl");
   const seenFile = path.join(stateDir, "seen.txt");
   const resumeLog = path.join(stateDir, "codex-resume.log");
+
+  const wakeCheck = shouldWake(event, args);
+  if (!wakeCheck.ok) {
+    await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status: "skipped", reason: wakeCheck.reason });
+    return { status: "skipped", reason: wakeCheck.reason };
+  }
+
+  const seen = await readSeen(seenFile);
+  if (seen.has(event.key)) {
+    await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status: "duplicate" });
+    return { status: "duplicate" };
+  }
+
+  await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status: "waking" });
+
+  const prompt = buildPrompt(event, replyHelper, args);
+  const exitCode = await runCodexResume(args, prompt, resumeLog);
+  const status = exitCode === 0 ? "delivered" : "resume-failed";
+  if (exitCode === 0) await markSeen(seenFile, event.key);
+  await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status, exitCode });
+  return { status, exitCode };
+}
+
+async function processEvent({ args, pr, eventName, delivery, body, contentType, stateDir, replyHelper }) {
+  const logFile = path.join(stateDir, "events.jsonl");
   let payload;
 
   try {
@@ -333,26 +397,101 @@ async function processEvent({ args, pr, eventName, delivery, body, contentType, 
     return { status: "ignored" };
   }
 
-  const wakeCheck = shouldWake(event, args);
-  if (!wakeCheck.ok) {
-    await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status: "skipped", reason: wakeCheck.reason });
-    return { status: "skipped", reason: wakeCheck.reason };
+  return handleEvent({ args, event, stateDir, replyHelper });
+}
+
+function execFileJsonLines(command, args) {
+  return new Promise((resolve, reject) => {
+    execFile(command, args, { maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(stderr.trim() || error.message));
+        return;
+      }
+      const lines = stdout.split(/\r?\n/).filter(Boolean);
+      resolve(lines.map((line) => JSON.parse(line)));
+    });
+  });
+}
+
+async function fetchExistingReviewComments(pr) {
+  const comments = await execFileJsonLines("gh", [
+    "api",
+    "--paginate",
+    `repos/${pr.owner}/${pr.repo}/pulls/${pr.number}/comments`,
+    "--jq",
+    ".[]",
+  ]);
+  return comments.map((comment) => normalizeExistingReviewComment(comment, pr));
+}
+
+function eventTimestamp(event) {
+  return new Date(event.createdAt).getTime() || 0;
+}
+
+function selectCatchUpEvents(events, args) {
+  const threads = new Map();
+  for (const event of events) {
+    if (!event.rootCommentId) continue;
+    const thread = threads.get(event.rootCommentId) || [];
+    thread.push(event);
+    threads.set(event.rootCommentId, thread);
   }
 
-  const seen = await readSeen(seenFile);
-  if (seen.has(event.key)) {
-    await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status: "duplicate" });
-    return { status: "duplicate" };
+  const selected = [];
+  for (const thread of threads.values()) {
+    const sorted = thread.sort((a, b) => eventTimestamp(a) - eventTimestamp(b) || (a.commentId || 0) - (b.commentId || 0));
+    const lastAgentReplyIndex = sorted.findLastIndex((event) => event.body.includes(AGENT_REPLY_MARKER));
+    const eligible = sorted.filter((event, index) => index > lastAgentReplyIndex && shouldWake(event, args).ok);
+    const latest = eligible.at(-1);
+    if (latest) selected.push({ ...latest, catchUp: true });
+  }
+  return selected;
+}
+
+async function prepareExistingComments({ args, pr, stateDir, replyHelper }) {
+  if (!args.baselineExisting && !args.catchUpExisting) return;
+
+  const logFile = path.join(stateDir, "events.jsonl");
+  const seenFile = path.join(stateDir, "seen.txt");
+  let events;
+  try {
+    events = await fetchExistingReviewComments(pr);
+  } catch (error) {
+    await appendJsonl(logFile, {
+      at: new Date().toISOString(),
+      eventName: "startup-existing-comments",
+      status: "fetch-failed",
+      error: error.message,
+    });
+    return;
   }
 
-  await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status: "waking" });
+  if (args.catchUpExisting) {
+    const catchUpEvents = selectCatchUpEvents(events, args);
+    await appendJsonl(logFile, {
+      at: new Date().toISOString(),
+      eventName: "startup-existing-comments",
+      status: "catch-up-selected",
+      total: events.length,
+      selected: catchUpEvents.length,
+    });
+    for (const event of catchUpEvents) {
+      await handleEvent({ args, event, stateDir, replyHelper });
+    }
+  }
 
-  const prompt = buildPrompt(event, replyHelper, args);
-  const exitCode = await runCodexResume(args, prompt, resumeLog);
-  const status = exitCode === 0 ? "delivered" : "resume-failed";
-  if (exitCode === 0) await markSeen(seenFile, event.key);
-  await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status, exitCode });
-  return { status, exitCode };
+  if (args.baselineExisting) {
+    await markSeenMany(
+      seenFile,
+      events.map((event) => event.key),
+    );
+    await appendJsonl(logFile, {
+      at: new Date().toISOString(),
+      eventName: "startup-existing-comments",
+      status: "baselined",
+      total: events.length,
+    });
+  }
 }
 
 async function main() {
@@ -394,6 +533,8 @@ async function main() {
     author: args.author || null,
     ignoreAuthors: args.ignoreAuthors,
     dryRun: args.dryRun,
+    baselineExisting: args.baselineExisting,
+    catchUpExisting: args.catchUpExisting,
     updatedAt: new Date().toISOString(),
   };
   await writeFile(path.join(stateDir, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
@@ -413,6 +554,8 @@ async function main() {
     console.log(JSON.stringify(result));
     return;
   }
+
+  await prepareExistingComments({ args, pr, stateDir, replyHelper });
 
   let queue = Promise.resolve();
   const server = createServer((request, response) => {

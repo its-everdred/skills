@@ -20,6 +20,8 @@ Options:
   --author LOGIN          Only wake for comments from this login.
   --allow-any-author      Wake for any author. Use only for trusted repos.
   --ignore-author LOGIN   Ignore comments from this login. Repeatable.
+  --catch-up-existing     Wake once for existing unhandled review threads.
+  --no-baseline-existing  Do not mark current review comments as already seen.
   --autonomous            Prompt Codex to reply first, then implement if needed.
   --install-hook          Try to create a GitHub repository webhook.
   --keep-hook             Keep an installed repository webhook on stop/restart.
@@ -231,6 +233,8 @@ CONFIRM_SMEE=false
 AUTHOR=""
 ALLOW_ANY_AUTHOR=false
 IGNORE_AUTHORS=()
+CATCH_UP_EXISTING=false
+BASELINE_EXISTING=true
 AUTONOMOUS=false
 INSTALL_HOOK=false
 HOOK_INSTALLED=false
@@ -315,6 +319,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     --ignore-author=*)
       IGNORE_AUTHORS+=("${1#*=}")
+      ;;
+    --catch-up-existing)
+      CATCH_UP_EXISTING=true
+      ;;
+    --no-baseline-existing)
+      BASELINE_EXISTING=false
       ;;
     --autonomous)
       AUTONOMOUS=true
@@ -431,6 +441,10 @@ listener_args=(env PR_MONITOR_WEBHOOK_SECRET="$SECRET" node "$LISTENER" --pr-url
 listener_args+=(--thread "$THREAD")
 [[ -n "$AUTHOR" ]] && listener_args+=(--author "$AUTHOR")
 $ALLOW_ANY_AUTHOR && listener_args+=(--allow-any-author)
+$CATCH_UP_EXISTING && listener_args+=(--catch-up-existing)
+if ! $BASELINE_EXISTING; then
+  listener_args+=(--no-baseline-existing)
+fi
 $AUTONOMOUS && listener_args+=(--autonomous)
 $DRY_RUN && listener_args+=(--dry-run)
 if [[ ${#IGNORE_ARGS[@]} -gt 0 ]]; then
@@ -448,6 +462,8 @@ jq -n \
   --arg startedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg smeeClientPackage "$SMEE_CLIENT_PACKAGE" \
   --argjson autonomous "$AUTONOMOUS" \
+  --argjson baselineExisting "$BASELINE_EXISTING" \
+  --argjson catchUpExisting "$CATCH_UP_EXISTING" \
   '{
     prUrl: $prUrl,
     smeeUrl: $smeeUrl,
@@ -456,6 +472,8 @@ jq -n \
     thread: $thread,
     stateDir: $stateDir,
     autonomous: $autonomous,
+    baselineExisting: $baselineExisting,
+    catchUpExisting: $catchUpExisting,
     smeeClientPackage: $smeeClientPackage,
     startedAt: $startedAt
   }' >"$CONFIG_FILE"
