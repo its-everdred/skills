@@ -7,6 +7,8 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 
+const AGENT_REPLY_MARKER = "<!-- pr-monitor-agent-reply -->";
+
 function usage() {
   console.log(`Usage: pr-monitor-webhook.mjs --pr-url URL (--thread ID | --last) [options]
 
@@ -235,6 +237,7 @@ function normalizeEvent(eventName, delivery, payload, targetPr) {
 
 function shouldWake(event, args) {
   if (!event) return { ok: false, reason: "ignored-event" };
+  if (event.body.includes(AGENT_REPLY_MARKER)) return { ok: false, reason: "agent-reply" };
   if (!args.author && !args.allowAnyAuthor) return { ok: false, reason: "missing-author-allowlist" };
   if (args.author && event.author !== args.author) return { ok: false, reason: "author-filter" };
   if (args.ignoreAuthors.includes(event.author)) return { ok: false, reason: "ignored-author" };

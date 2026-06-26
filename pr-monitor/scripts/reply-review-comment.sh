@@ -72,6 +72,7 @@ if [[ -n "$BODY_FILE" ]]; then
   BODY="$(cat "$BODY_FILE")"
 fi
 [[ -n "$BODY" ]] || die "reply body must not be empty"
+SUBMITTED_BODY="$BODY"$'\n\n<!-- pr-monitor-agent-reply -->'
 
 if [[ "$PR_URL" =~ github\.com[:/]([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
   OWNER="${BASH_REMATCH[1]}"
@@ -91,12 +92,12 @@ ROOT_ID="$(jq -r '.in_reply_to_id // .id' <<<"$ORIGINAL")"
 
 RESPONSE="$("$GH_BIN" api "repos/$OWNER/$REPO/pulls/$PR_NUMBER/comments/$COMMENT_ID/replies" \
   --method POST \
-  -f body="$BODY")"
+  -f body="$SUBMITTED_BODY")"
 REPLY_ID="$(jq -r '.id' <<<"$RESPONSE")"
 
 for attempt in 1 2 3; do
   COMMENTS="$("$GH_BIN" api --paginate "repos/$OWNER/$REPO/pulls/$PR_NUMBER/comments" --jq '.[]')"
-  VERIFIED="$(jq -s --argjson root "$ROOT_ID" --argjson reply "$REPLY_ID" --arg author "$BOT_LOGIN" --arg body "$BODY" '
+  VERIFIED="$(jq -s --argjson root "$ROOT_ID" --argjson reply "$REPLY_ID" --arg author "$BOT_LOGIN" --arg body "$SUBMITTED_BODY" '
     map(select(.id == $root or .in_reply_to_id == $root))
     | map(select(.id == $reply and .user.login == $author and .body == $body))
     | first // {}

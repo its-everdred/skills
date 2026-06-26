@@ -427,11 +427,6 @@ if [[ ${#IGNORE_AUTHORS[@]} -gt 0 ]]; then
     IGNORE_ARGS+=(--ignore-author "$login")
   done
 fi
-if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-  BOT_LOGIN="$(gh api user --jq .login 2>/dev/null || true)"
-  [[ -z "$BOT_LOGIN" ]] || IGNORE_ARGS+=(--ignore-author "$BOT_LOGIN")
-fi
-
 listener_args=(env PR_MONITOR_WEBHOOK_SECRET="$SECRET" node "$LISTENER" --pr-url "$PR_URL" --port "$PORT" --path "$WEBHOOK_PATH" --dir "$ROOT_DIR" --secret-env PR_MONITOR_WEBHOOK_SECRET)
 listener_args+=(--thread "$THREAD")
 [[ -n "$AUTHOR" ]] && listener_args+=(--author "$AUTHOR")

@@ -50,7 +50,7 @@ Set up a local monitor for a pull request while the developer is actively review
 - `--dir <path>`: directory for monitor state, logs, and pid files. Default: `/tmp/pr-monitor`.
 - `--author <login>`: only print comments from a specific GitHub login. Use this only when the reviewer identity is unambiguous.
 - `--allow-any-author`: wake for any author. Use only for trusted repositories.
-- `--ignore-author <login>`: ignore comments from a login. The start script also ignores the authenticated `gh` login when available.
+- `--ignore-author <login>`: ignore comments from a login. Do not ignore the reviewer login; helper-generated replies carry a hidden marker so the listener can skip its own replies.
 - `--autonomous`: prompt Codex to respond on GitHub first, then implement, test, push, and follow up only when needed. Without this, the wake only prepares work in the Codex thread.
 - `--restart`: replace an existing watcher for the same PR.
 - `--dry-run`: log the resume prompt without invoking Codex. Use for local smoke tests.
@@ -64,5 +64,6 @@ Use `status-pr-monitor.sh <pull-request-url>` to inspect listener state and `sto
 - Smee removes the need to deploy a service. A GitHub webhook still needs to point at the Smee URL; the script can create it with `--install-hook` when permissions allow.
 - Smee is a third-party relay. For private repositories, confirm the developer is comfortable relaying webhook payloads through Smee or use a self-hosted relay/tunnel.
 - The monitor dedupes events by review-comment id and persists state under the monitor directory.
+- Replies sent through `reply-review-comment.sh` include a hidden marker so same-login reviewer setups can still wake on the developer's comments without looping on the agent's own replies.
 - Never resolve review threads unless the developer explicitly asks.
 - The old polling script remains available as `watch-pr-comments.sh` for fallback checks, but it only writes logs and does not wake Codex.
