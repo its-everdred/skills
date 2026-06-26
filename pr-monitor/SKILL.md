@@ -1,6 +1,6 @@
 ---
 name: pr-monitor
-description: Start a local Smee-backed GitHub PR review-comment listener that resumes the current Codex thread when new review feedback arrives, so the agent can acknowledge and act without the user sending a separate prompt.
+description: Start a local Smee-backed GitHub PR review-comment listener that writes review feedback to a live notification log for the current Codex session to acknowledge and act on.
 ---
 
 # PR Monitor
@@ -11,7 +11,7 @@ Set up a local monitor for a pull request while the developer is actively review
 
 - The developer says they are going to focus on a PR and wants the agent woken as new comments are left.
 - The developer provides a GitHub pull request URL and asks to watch, monitor, listen, or subscribe to review feedback.
-- The desired behavior is: review comment posted -> same Codex thread resumes -> agent acknowledges, responds on GitHub, then implements only when a code change is actually requested.
+- The desired behavior is: review comment posted -> local listener logs it immediately -> current live agent acknowledges it, responds on GitHub, then implements only when a code change is actually requested.
 
 ## Procedure
 
@@ -53,7 +53,7 @@ Set up a local monitor for a pull request while the developer is actively review
 
 ## Options
 
-- `--thread <id>`: Codex session/thread id to resume.
+- `--thread <id>`: Codex session/thread id to resume. Do not use for normal live review monitoring.
 - `--smee-url <url>`: existing Smee channel. Default: create a new channel.
 - `--yes-use-smee`: confirm webhook payloads may pass through Smee's third-party relay.
 - `--secret <value>`: GitHub webhook secret. Default: generate one.
@@ -66,7 +66,7 @@ Set up a local monitor for a pull request while the developer is actively review
 - `--catch-up-existing`: on startup, wake once for each existing inline review thread whose latest matching reviewer comment is not followed by a marked helper reply.
 - `--no-baseline-existing`: skip the default startup baseline. By default, current review comments are marked seen so a newly started listener only wakes on future comments unless `--catch-up-existing` selects them first.
 - `--notify-only`: write matching comments to `notifications.jsonl` and do not spawn Codex.
-- `--autonomous`: legacy mode that starts a background `codex exec resume`. Avoid unless the developer explicitly asks for a separate background agent.
+- `--autonomous`: legacy mode that starts a background `codex exec resume`. Do not use unless the developer explicitly asks for a separate background agent.
 - `--restart`: replace an existing watcher for the same PR.
 - `--dry-run`: log the resume prompt without invoking Codex. Use for local smoke tests.
 - `--follow`: keep the command attached to the monitor log so new comments are visible immediately.
@@ -76,12 +76,12 @@ Use `status-pr-monitor.sh <pull-request-url>` to inspect listener state and `sto
 ## Notes
 
 - This is a webhook notification bridge, not a Codex hook. GitHub wakes the local receiver through Smee, then the receiver writes matching comments to `notifications.jsonl`.
-- Do not use background `codex exec resume` for live review monitoring unless explicitly requested. Prefer one live agent tailing notifications.
+- Do not use background `codex exec resume` for live review monitoring unless explicitly requested. Prefer one live agent watching notifications in the current conversation.
 - Smee removes the need to deploy a service. A GitHub webhook still needs to point at the Smee URL; the script can create it with `--install-hook` when permissions allow.
 - Smee is a third-party relay. For private repositories, confirm the developer is comfortable relaying webhook payloads through Smee or use a self-hosted relay/tunnel.
 - The monitor dedupes events by review-comment id and persists state under the monitor directory. Temp state is only a cache; startup can rebuild durable handled-state from GitHub helper markers.
 - Replies sent through `reply-review-comment.sh` include a hidden HTML comment marker so same-login reviewer setups can still wake on the developer's comments without looping on the agent's own replies. GitHub does not render the marker in the normal PR UI, but the API returns it.
 - Catch-up classification is durable after the marker exists. Historical same-login replies made before this marker cannot be perfectly distinguished from reviewer comments, so inspect catch-up wakes before acting.
-- The listener asks the background agent for a final `PR_MONITOR_STATUS`. If the agent reports `blocked`, or the final message contains common reply-auth failures, the event is logged as `agent-blocked` and is not marked seen.
+- In autonomous legacy mode, the listener asks the background agent for a final `PR_MONITOR_STATUS`. If the agent reports `blocked`, or the final message contains common reply-auth failures, the event is logged as `agent-blocked` and is not marked seen.
 - Never resolve review threads unless the developer explicitly asks.
 - The old polling script remains available as `watch-pr-comments.sh` for fallback checks, but it only writes logs and does not wake Codex.
