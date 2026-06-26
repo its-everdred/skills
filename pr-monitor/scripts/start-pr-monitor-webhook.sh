@@ -4,13 +4,12 @@ umask 077
 
 usage() {
   cat <<'USAGE'
-Usage: start-pr-monitor-webhook.sh <pull-request-url> --thread ID --author LOGIN --yes-use-smee [options]
+Usage: start-pr-monitor-webhook.sh <pull-request-url> --author LOGIN --yes-use-smee [options]
 
-Starts a Smee-backed GitHub webhook bridge that wakes the same Codex thread with
-`codex exec resume` when new PR review comments arrive.
+Starts a Smee-backed GitHub webhook bridge that logs new PR review comments.
 
 Options:
-  --thread ID             Codex session/thread id to resume.
+  --thread ID             Codex session/thread id to resume in autonomous mode.
   --port N                Local listener port. Default: choose a free port.
   --path PATH             Local webhook path. Default: /webhook.
   --dir PATH              State directory. Default: /tmp/pr-monitor.
@@ -22,6 +21,7 @@ Options:
   --ignore-author LOGIN   Ignore comments from this login. Repeatable.
   --catch-up-existing     Wake once for existing unhandled review threads.
   --no-baseline-existing  Do not mark current review comments as already seen.
+  --notify-only           Log matching comments without starting Codex.
   --autonomous            Prompt Codex to reply first, then implement if needed.
   --install-hook          Try to create a GitHub repository webhook.
   --keep-hook             Keep an installed repository webhook on stop/restart.
@@ -235,6 +235,7 @@ ALLOW_ANY_AUTHOR=false
 IGNORE_AUTHORS=()
 CATCH_UP_EXISTING=false
 BASELINE_EXISTING=true
+NOTIFY_ONLY=false
 AUTONOMOUS=false
 INSTALL_HOOK=false
 HOOK_INSTALLED=false
@@ -326,6 +327,9 @@ while [[ $# -gt 0 ]]; do
     --no-baseline-existing)
       BASELINE_EXISTING=false
       ;;
+    --notify-only)
+      NOTIFY_ONLY=true
+      ;;
     --autonomous)
       AUTONOMOUS=true
       ;;
@@ -364,7 +368,9 @@ done
   exit 1
 }
 parse_pr_url "$TARGET" || die "target must be a GitHub pull request URL"
-[[ -n "$THREAD" ]] || die "pass --thread ID"
+if ! $NOTIFY_ONLY; then
+  [[ -n "$THREAD" ]] || die "pass --thread ID or use --notify-only"
+fi
 [[ -n "$AUTHOR" || "$ALLOW_ANY_AUTHOR" == true ]] || die "pass --author LOGIN or --allow-any-author"
 [[ -z "$PORT" || "$PORT" =~ ^[0-9]+$ ]] || die "--port must be a positive integer"
 [[ "$WEBHOOK_PATH" == /* ]] || die "--path must start with /"
@@ -373,7 +379,7 @@ command -v node >/dev/null 2>&1 || die "node is required"
 command -v npx >/dev/null 2>&1 || die "npx is required"
 command -v curl >/dev/null 2>&1 || die "curl is required"
 command -v jq >/dev/null 2>&1 || die "jq is required"
-if ! $DRY_RUN; then
+if ! $DRY_RUN && ! $NOTIFY_ONLY; then
   command -v codex >/dev/null 2>&1 || die "codex is required"
 fi
 if $INSTALL_HOOK; then
@@ -438,13 +444,14 @@ if [[ ${#IGNORE_AUTHORS[@]} -gt 0 ]]; then
   done
 fi
 listener_args=(env PR_MONITOR_WEBHOOK_SECRET="$SECRET" node "$LISTENER" --pr-url "$PR_URL" --port "$PORT" --path "$WEBHOOK_PATH" --dir "$ROOT_DIR" --secret-env PR_MONITOR_WEBHOOK_SECRET)
-listener_args+=(--thread "$THREAD")
+[[ -n "$THREAD" ]] && listener_args+=(--thread "$THREAD")
 [[ -n "$AUTHOR" ]] && listener_args+=(--author "$AUTHOR")
 $ALLOW_ANY_AUTHOR && listener_args+=(--allow-any-author)
 $CATCH_UP_EXISTING && listener_args+=(--catch-up-existing)
 if ! $BASELINE_EXISTING; then
   listener_args+=(--no-baseline-existing)
 fi
+$NOTIFY_ONLY && listener_args+=(--notify-only)
 $AUTONOMOUS && listener_args+=(--autonomous)
 $DRY_RUN && listener_args+=(--dry-run)
 if [[ ${#IGNORE_ARGS[@]} -gt 0 ]]; then
@@ -464,6 +471,7 @@ jq -n \
   --argjson autonomous "$AUTONOMOUS" \
   --argjson baselineExisting "$BASELINE_EXISTING" \
   --argjson catchUpExisting "$CATCH_UP_EXISTING" \
+  --argjson notifyOnly "$NOTIFY_ONLY" \
   '{
     prUrl: $prUrl,
     smeeUrl: $smeeUrl,
@@ -474,6 +482,7 @@ jq -n \
     autonomous: $autonomous,
     baselineExisting: $baselineExisting,
     catchUpExisting: $catchUpExisting,
+    notifyOnly: $notifyOnly,
     smeeClientPackage: $smeeClientPackage,
     startedAt: $startedAt
   }' >"$CONFIG_FILE"

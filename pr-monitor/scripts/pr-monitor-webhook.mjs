@@ -10,7 +10,7 @@ import process from "node:process";
 const AGENT_REPLY_MARKER = "<!-- pr-monitor-agent-reply -->";
 
 function usage() {
-  console.log(`Usage: pr-monitor-webhook.mjs --pr-url URL (--thread ID | --last) [options]
+  console.log(`Usage: pr-monitor-webhook.mjs --pr-url URL [--thread ID | --last] [options]
 
 Options:
   --port N                 Local port to listen on.
@@ -24,6 +24,7 @@ Options:
   --ignore-author LOGIN    Ignore comments from this login. Repeatable.
   --catch-up-existing      On startup, wake for existing unhandled review threads.
   --no-baseline-existing   Do not mark current review comments as already seen.
+  --notify-only            Log matching comments without starting Codex.
   --autonomous             Prompt Codex to reply first, then implement if needed.
   --dry-run                Log the resume prompt without running codex.
   --max-body-bytes N       Maximum webhook payload size. Default: 1048576.
@@ -43,6 +44,7 @@ function parseArgs(argv) {
     allowAnyAuthor: false,
     baselineExisting: true,
     catchUpExisting: false,
+    notifyOnly: false,
     autonomous: false,
     dryRun: false,
     event: "",
@@ -82,6 +84,7 @@ function parseArgs(argv) {
     else if (arg.startsWith("--ignore-author=")) args.ignoreAuthors.push(arg.slice(16));
     else if (arg === "--catch-up-existing") args.catchUpExisting = true;
     else if (arg === "--no-baseline-existing") args.baselineExisting = false;
+    else if (arg === "--notify-only") args.notifyOnly = true;
     else if (arg === "--autonomous") args.autonomous = true;
     else if (arg === "--dry-run") args.dryRun = true;
     else if (arg === "--max-body-bytes") args.maxBodyBytes = Number(next());
@@ -374,6 +377,7 @@ async function runCodexResume(args, prompt, logFile, outputFile) {
 
 async function handleEvent({ args, event, stateDir, replyHelper }) {
   const logFile = path.join(stateDir, "events.jsonl");
+  const notificationFile = path.join(stateDir, "notifications.jsonl");
   const seenFile = path.join(stateDir, "seen.txt");
   const resumeLog = path.join(stateDir, "codex-resume.log");
 
@@ -387,6 +391,18 @@ async function handleEvent({ args, event, stateDir, replyHelper }) {
   if (seen.has(event.key)) {
     await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status: "duplicate" });
     return { status: "duplicate" };
+  }
+
+  if (args.notifyOnly) {
+    await appendJsonl(notificationFile, { at: new Date().toISOString(), ...event });
+    await appendJsonl(logFile, {
+      at: new Date().toISOString(),
+      ...event,
+      status: "notified",
+      notificationFile,
+    });
+    await markSeen(seenFile, event.key);
+    return { status: "notified" };
   }
 
   await appendJsonl(logFile, { at: new Date().toISOString(), ...event, status: "waking" });
@@ -544,7 +560,9 @@ async function main() {
     args.secret = process.env[args.secretEnv] || "";
     delete process.env[args.secretEnv];
   }
-  if (!args.last && !args.thread) throw new Error("pass --thread ID or --last");
+  if (!args.notifyOnly && !args.last && !args.thread) {
+    throw new Error("pass --thread ID or --last, or use --notify-only");
+  }
   if (args.last && args.thread) throw new Error("pass only one of --thread or --last");
   if (args.last && !args.testPayload) throw new Error("--last is only supported for --test-payload; pass a concrete --thread for long-running monitors");
   if (!args.author && !args.allowAnyAuthor) throw new Error("pass --author LOGIN or --allow-any-author");
@@ -574,6 +592,7 @@ async function main() {
     dryRun: args.dryRun,
     baselineExisting: args.baselineExisting,
     catchUpExisting: args.catchUpExisting,
+    notifyOnly: args.notifyOnly,
     updatedAt: new Date().toISOString(),
   };
   await writeFile(path.join(stateDir, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
