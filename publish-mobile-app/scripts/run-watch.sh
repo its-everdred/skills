@@ -91,6 +91,7 @@ WATCH_DEST_DIR="${PROJECT_ROOT}/ios/${WATCH_SCHEME}"
 if [ -d "$WATCH_SRC_DIR" ] && [ -d "$WATCH_DEST_DIR" ]; then
     echo -e "${YELLOW}🔄 Syncing watch sources (watchos/ → ios/${WATCH_SCHEME}/)...${NC}"
     cp "$WATCH_SRC_DIR"/*.swift "$WATCH_SRC_DIR"/Info.plist "$WATCH_DEST_DIR"/ 2>/dev/null || true
+    cp -R "$WATCH_SRC_DIR"/Assets.xcassets "$WATCH_DEST_DIR"/ 2>/dev/null || true
 fi
 
 # 6. Build the watch scheme for this watch simulator (incremental after first).

@@ -39,6 +39,7 @@ WATCH_DEST_DIR=$(ls -d "${PROJECT_ROOT}"/ios/*Watch 2>/dev/null | head -1)
 if [ -d "$WATCH_SRC_DIR" ] && [ -n "$WATCH_DEST_DIR" ] && [ -d "$WATCH_DEST_DIR" ]; then
     echo -e "${YELLOW}🔄 Syncing watch sources (watchos/ → ios/$(basename "$WATCH_DEST_DIR")/)...${NC}"
     cp "$WATCH_SRC_DIR"/*.swift "$WATCH_SRC_DIR"/Info.plist "$WATCH_DEST_DIR"/ 2>/dev/null || true
+    cp -R "$WATCH_SRC_DIR"/Assets.xcassets "$WATCH_DEST_DIR"/ 2>/dev/null || true
 fi
 
 # Optionally bring up the Apple Watch companion alongside the phone app.
