@@ -28,6 +28,19 @@ else
     fi
 fi
 
+# Sync the watch companion sources into the generated Xcode project before the
+# build. An Expo withWatchApp-style config plugin only copies watchos/ -> the
+# embedded watch target during `expo prebuild`, which `expo run:ios` skips once
+# the native project exists — so edits to watchos/ would otherwise silently never
+# ship in the embedded watch app. App-agnostic: the watch target dir is found by
+# globbing ios/*Watch, so this is a no-op for apps without a watch companion.
+WATCH_SRC_DIR="${PROJECT_ROOT}/../watchos"
+WATCH_DEST_DIR=$(ls -d "${PROJECT_ROOT}"/ios/*Watch 2>/dev/null | head -1)
+if [ -d "$WATCH_SRC_DIR" ] && [ -n "$WATCH_DEST_DIR" ] && [ -d "$WATCH_DEST_DIR" ]; then
+    echo -e "${YELLOW}🔄 Syncing watch sources (watchos/ → ios/$(basename "$WATCH_DEST_DIR")/)...${NC}"
+    cp "$WATCH_SRC_DIR"/*.swift "$WATCH_SRC_DIR"/Info.plist "$WATCH_DEST_DIR"/ 2>/dev/null || true
+fi
+
 # Optionally bring up the Apple Watch companion alongside the phone app.
 # Generalized: only chains if a watch runner exists in this repo, so the same
 # script is a no-op elsewhere. We wait until the phone app is installed before

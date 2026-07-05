@@ -74,9 +74,12 @@ echo ""
 export ANDROID_HOME="$HOME/Library/Android/sdk"
 export PATH="$PATH:$ANDROID_HOME/platform-tools"
 
-# Clean and rebuild
+# Clean and rebuild. EXPO_NO_GIT_STATUS skips expo's interactive "continue with
+# uncommitted changes?" prompt — the only dirty files are the version bump we just
+# made on purpose, and that prompt defaults to "yes" on Ctrl+C (so it can't be
+# cancelled cleanly). Our own y/n gate above is the intended stopping point.
 echo -e "${YELLOW}🧹 Cleaning and rebuilding native project...${NC}"
-npx expo prebuild --platform android --clean
+EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform android --clean
 
 # Create local.properties file with SDK location
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties

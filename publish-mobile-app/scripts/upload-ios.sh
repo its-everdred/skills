@@ -71,9 +71,11 @@ echo ""
 ./scripts/bump-version.sh
 echo ""
 
-# Clean and rebuild
+# Clean and rebuild. EXPO_NO_GIT_STATUS skips expo's interactive "continue with
+# uncommitted changes?" prompt — the only dirty files are the version bump we just
+# made on purpose, and that prompt defaults to "yes" on Ctrl+C.
 echo -e "${YELLOW}🧹 Cleaning and rebuilding native project...${NC}"
-npx expo prebuild --platform ios --clean
+EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform ios --clean
 
 # Generate ExportOptions.plist with current team ID
 ./scripts/generate-export-options.sh
