@@ -180,6 +180,11 @@ Templates and references:
 - **Version/build lockstep:** `bump-version.sh` keeps `ios.buildNumber` equal to
   `android.versionCode` so an `overwrite` rebuild still uploads a unique build
   number (TestFlight rejects a reused version+build pair).
+- **Monotonic versionCode:** `bump-version.sh` writes a `.version-code`
+  high-water-mark file in the mobile dir so the next build's code always clears
+  what's already uploaded, even if the marketing version was reset (Play/TestFlight
+  only move forward). **Add `.version-code` to your mobile dir's `.gitignore`** —
+  it's machine-local build state, not source.
 - **The screenshot harness is the least generalizable piece.** The runner is
   generic, but the `?shot=1` mode and `shots.config.json` (screens, accents,
   selectors) are app-specific and must be supplied per app.

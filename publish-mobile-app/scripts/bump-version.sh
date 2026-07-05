@@ -107,7 +107,18 @@ echo ""
 CURRENT_VERSION=$(grep -o '"version": "[^"]*' app.json | grep -o '[^"]*$')
 
 # Read current versionCode from app.json (falls back to calculating from version)
-CURRENT_VERSION_CODE=$(python3 -c "import json; d=json.load(open('app.json')); print(d.get('expo',{}).get('android',{}).get('versionCode', 0))" 2>/dev/null || echo "0")
+APP_JSON_CODE=$(python3 -c "import json; d=json.load(open('app.json')); print(d.get('expo',{}).get('android',{}).get('versionCode', 0))" 2>/dev/null || echo "0")
+
+# app.json's versionCode lags reality: main is pinned at a low code and every
+# branch resets it, but Google Play / TestFlight only ever move forward. A
+# gitignored high-water-mark file records the highest code we've actually built
+# so the next one always clears what's already uploaded, even after a reset.
+HIGHWATER_FILE=".version-code"
+HIGHWATER=0
+[ -f "$HIGHWATER_FILE" ] && HIGHWATER=$(cat "$HIGHWATER_FILE" 2>/dev/null | tr -dc '0-9')
+[ -z "$HIGHWATER" ] && HIGHWATER=0
+CURRENT_VERSION_CODE=$APP_JSON_CODE
+[ "$HIGHWATER" -gt "$CURRENT_VERSION_CODE" ] && CURRENT_VERSION_CODE=$HIGHWATER
 
 if [ "$VERSION_TYPE" = "overwrite" ]; then
     echo -e "${BLUE}🔄 Keeping current version for rebuild...${NC}"
@@ -125,9 +136,19 @@ else
     NEW_VERSION=$(increment_version $CURRENT_VERSION $VERSION_TYPE)
     echo -e "New version: ${GREEN}$NEW_VERSION${NC}"
 
-    # Calculate versionCode based on semantic version
-    NEW_VERSION_CODE=$(calculate_version_code $NEW_VERSION)
-    echo -e "New versionCode: ${GREEN}$NEW_VERSION_CODE${NC} (calculated from version)"
+    # Calculate versionCode from the semantic version, but never let it stall or
+    # regress: Google Play rejects a rollout whose versionCode isn't strictly
+    # higher than what's already live. If the marketing version was reset (e.g.
+    # main is pinned at 1.0.0), the name-derived code can collide with an
+    # already-uploaded build, so floor it at the current code + 1.
+    CALC_VERSION_CODE=$(calculate_version_code $NEW_VERSION)
+    if [ "$CALC_VERSION_CODE" -gt "$((CURRENT_VERSION_CODE + 1))" ]; then
+        NEW_VERSION_CODE=$CALC_VERSION_CODE
+        echo -e "New versionCode: ${GREEN}$NEW_VERSION_CODE${NC} (calculated from version)"
+    else
+        NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+        echo -e "New versionCode: ${GREEN}$NEW_VERSION_CODE${NC} (incremented; calculated $CALC_VERSION_CODE would collide)"
+    fi
 fi
 
 # Update app.json (version + android.versionCode) using python for reliable JSON editing
@@ -145,6 +166,9 @@ with open('app.json', 'w') as f:
     json.dump(data, f, indent=2)
     f.write('\n')
 "
+
+# Advance the high-water mark so the next build always clears this one.
+echo "$NEW_VERSION_CODE" > "$HIGHWATER_FILE"
 
 # Update package.json (portable in-place edit: -i.bak works on both BSD/macOS
 # and GNU sed; remove the backup afterwards)
