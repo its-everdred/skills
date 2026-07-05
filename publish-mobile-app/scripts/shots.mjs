@@ -38,6 +38,10 @@ const DEFAULT_CONFIG = {
       { dir: 'phone', width: 540, height: 960, deviceScaleFactor: 2 }, //                 1080x1920
       { dir: 'tablet-portrait', suffix: '-7in', width: 540, height: 960, deviceScaleFactor: 2.6667 }, // 1440x2560
       { dir: 'tablet-portrait', suffix: '-10in', width: 540, height: 960, deviceScaleFactor: 3 }, //     1620x2880
+      // iOS App Store portrait sets — exact required pixel sizes, no resize/distortion.
+      // width<700 keeps the phone full-bleed layout; width>=700 triggers a tablet layout.
+      { dir: 'ios-iphone-6.7', width: 428, height: 926, deviceScaleFactor: 3 }, //         1284x2778 (iPhone 6.7")
+      { dir: 'ios-ipad-13', width: 1024, height: 1366, deviceScaleFactor: 2 }, //          2048x2732 (iPad 12.9"/13")
     ],
   },
   landscape: {
