@@ -128,6 +128,7 @@ add_scripts "$MOBILE_PATH/package.json" '{
   "setup:ios": "bash scripts/setup-ios.sh",
   "setup:android": "bash scripts/setup-android-upload.sh",
   "ios": "bash scripts/run-ios.sh",
+  "watch": "bash scripts/run-watch.sh",
   "upload:ios": "bash scripts/upload-ios.sh",
   "upload:android": "bash scripts/upload-android.sh"
 }'
