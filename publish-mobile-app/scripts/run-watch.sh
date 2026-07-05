@@ -81,6 +81,18 @@ xcrun simctl pair "$WATCH_UDID" "$PHONE_UDID" >/dev/null 2>&1 || true
 xcrun simctl boot "$WATCH_UDID" 2>/dev/null || true
 open -a Simulator
 
+# 5.5 Sync the watch sources into the generated Xcode project before building.
+#     An Expo withWatchApp-style config plugin only copies watchos/ -> the
+#     embedded watch target during `expo prebuild`; a plain xcodebuild compiles
+#     those copies, so edits to watchos/ would silently never ship without this
+#     sync. Mirror the plugin into ios/${WATCH_SCHEME}.
+WATCH_SRC_DIR="${PROJECT_ROOT}/../watchos"
+WATCH_DEST_DIR="${PROJECT_ROOT}/ios/${WATCH_SCHEME}"
+if [ -d "$WATCH_SRC_DIR" ] && [ -d "$WATCH_DEST_DIR" ]; then
+    echo -e "${YELLOW}🔄 Syncing watch sources (watchos/ → ios/${WATCH_SCHEME}/)...${NC}"
+    cp "$WATCH_SRC_DIR"/*.swift "$WATCH_SRC_DIR"/Info.plist "$WATCH_DEST_DIR"/ 2>/dev/null || true
+fi
+
 # 6. Build the watch scheme for this watch simulator (incremental after first).
 echo -e "${YELLOW}🔨 Building ${WATCH_SCHEME}...${NC}"
 if ! xcodebuild -workspace "$WORKSPACE" -scheme "$WATCH_SCHEME" -configuration Debug \
