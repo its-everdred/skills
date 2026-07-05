@@ -75,6 +75,21 @@ exists** — upload your first release manually in the Console.
 3. Set up at least one **testing track** before the first `upload:android` (the
    script builds a signed `.aab` and walks you through uploading it).
 
+**Package name (`applicationId`).** Must match the package name you registered
+in Play Console **exactly** (e.g. `com.example.myapp`) and can **never change**
+once published. `upload:android` prompts for it on the first run, stores it in
+`.env` as `ANDROID_PACKAGE_NAME`, and applies it to `app.json` before every
+build.
+
+**Minification / mapping.** `upload:android` enables R8
+(`android.enableMinifyInReleaseBuilds=true`) so the release build shrinks and
+produces a `mapping.txt`, archived alongside the `.aab` in `releases/`. Upload it
+under Play Console → App bundle explorer → Downloads (or when creating the
+release) for readable crash/ANR traces. ⚠️ R8 can strip classes a library needs
+at runtime — test the release `.aab` on an internal track before promoting to
+production. To disable, remove the `enableMinifyInReleaseBuilds` line the script
+appends to `android/gradle.properties`.
+
 ## App-level signing (both platforms)
 
 - **iOS:** automatic signing via Xcode + your Team ID. `setup:ios` walks through

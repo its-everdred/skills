@@ -74,6 +74,43 @@ echo ""
 export ANDROID_HOME="$HOME/Library/Android/sdk"
 export PATH="$PATH:$ANDROID_HOME/platform-tools"
 
+# ── Android package name (applicationId) ───────────────────────────────────
+# Google Play requires the bundle's package name to exactly match the one you
+# registered when creating the app in Play Console (e.g. com.example.myapp).
+# It's permanent once published. Prompt for it the first time, store it in .env,
+# and apply it to app.json so `expo prebuild` bakes it into the AAB.
+if [ -z "$ANDROID_PACKAGE_NAME" ]; then
+    echo ""
+    echo -e "${YELLOW}📦 First-time Android setup — package name${NC}"
+    echo "Enter the package name you registered in Google Play Console."
+    echo -e "It must match ${RED}exactly${NC} and can never change once published."
+    echo -e "Example: ${GREEN}com.example.myapp${NC}"
+    while true; do
+        read -r -p "Android package name: " ANDROID_PACKAGE_NAME
+        if printf '%s' "$ANDROID_PACKAGE_NAME" | grep -qE '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'; then
+            break
+        fi
+        echo -e "${RED}Invalid.${NC} Use lowercase segments separated by dots, e.g. com.example.myapp"
+    done
+    # Persist to .env for future runs (replace any prior line, else append).
+    if grep -q '^ANDROID_PACKAGE_NAME=' .env 2>/dev/null; then
+        sed -i.bak "s/^ANDROID_PACKAGE_NAME=.*/ANDROID_PACKAGE_NAME=$ANDROID_PACKAGE_NAME/" .env && rm -f .env.bak
+    else
+        printf '\n# Android Play Store package name (applicationId)\nANDROID_PACKAGE_NAME=%s\n' "$ANDROID_PACKAGE_NAME" >> .env
+    fi
+    echo -e "${GREEN}✓ Saved ANDROID_PACKAGE_NAME to .env${NC}"
+fi
+
+# Apply the stored package name to app.json so the generated bundle uses it.
+python3 -c "
+import json
+with open('app.json') as f: data = json.load(f)
+data['expo'].setdefault('android', {})['package'] = '$ANDROID_PACKAGE_NAME'
+with open('app.json', 'w') as f:
+    json.dump(data, f, indent=2); f.write('\n')
+"
+echo -e "${GREEN}✓ Android package: $ANDROID_PACKAGE_NAME${NC}"
+
 # Clean and rebuild. EXPO_NO_GIT_STATUS skips expo's interactive "continue with
 # uncommitted changes?" prompt — the only dirty files are the version bump we just
 # made on purpose, and that prompt defaults to "yes" on Ctrl+C (so it can't be
@@ -83,6 +120,16 @@ EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform android --clean
 
 # Create local.properties file with SDK location
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+
+# Enable R8 code shrinking + obfuscation for the release build. This makes the
+# build produce a deobfuscation mapping (mapping.txt, archived + surfaced below)
+# so Play Console can symbolicate crashes/ANRs, and it shrinks the app. The
+# prebuild --clean above regenerates gradle.properties, so we (re)append here.
+# NOTE: R8 can strip classes a library needs at runtime — always test the
+# release .aab on an internal track before promoting to production.
+if ! grep -q '^android.enableMinifyInReleaseBuilds=true' android/gradle.properties 2>/dev/null; then
+    echo "android.enableMinifyInReleaseBuilds=true" >> android/gradle.properties
+fi
 
 # Navigate to Android directory
 cd android || exit 1
