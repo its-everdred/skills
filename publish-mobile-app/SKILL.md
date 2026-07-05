@@ -76,6 +76,19 @@ screenshots → version bumps. The scripts are interactive and safe to re-run.
    `xcrun altool`. The build will **not** go live until you submit it in App
    Store Connect.
 
+   If the app embeds an Apple Watch companion, `npm run ios` auto-chains the
+   watch build after the phone build finishes, or you can run it standalone:
+
+   ```bash
+   npm run watch   # build + install + launch the watch app on a paired watchOS Simulator
+   ```
+
+   `run-watch.sh` discovers the workspace from `ios/`, defaults the watch scheme
+   to `<app scheme>Watch` (override with `WATCH_SCHEME=`), pairs a watchOS
+   Simulator to a booted iPhone, and installs/launches the companion. It is a
+   no-op for apps without a watch target. The companion is phone-driven, so keep
+   the iPhone app running for live data.
+
 4. **Android: setup + upload.**
 
    ```bash
@@ -121,7 +134,8 @@ Installed into `<project>/mobile/scripts/` (screenshot runner into
 
 - `/path/to/publish-mobile-app/scripts/setup-ios.sh` — one-time iOS onboarding: toolchain preflight, `expo prebuild`, optional Xcode signing.
 - `/path/to/publish-mobile-app/scripts/doctor-ios.sh` — non-interactive iOS toolchain diagnostics; auto-installs missing iOS/watchOS simulator platforms.
-- `/path/to/publish-mobile-app/scripts/run-ios.sh` — dev entrypoint (`npm run ios`); first-run onboarding gate, then `expo run:ios`.
+- `/path/to/publish-mobile-app/scripts/run-ios.sh` — dev entrypoint (`npm run ios`); first-run onboarding gate, then `expo run:ios`; auto-chains the watch build when present.
+- `/path/to/publish-mobile-app/scripts/run-watch.sh` — build/install/launch the Apple Watch companion on a paired watchOS Simulator (`npm run watch`); no-op without a watch target.
 - `/path/to/publish-mobile-app/scripts/generate-export-options.sh` — writes `ios/ExportOptions.plist` from the runtime Team ID + bundle id.
 - `/path/to/publish-mobile-app/scripts/upload-ios.sh` — bump → prebuild → archive → export → upload to TestFlight.
 - `/path/to/publish-mobile-app/scripts/setup-android-upload.sh` — Play Console + optional service-account docs + per-app keystore generation.
