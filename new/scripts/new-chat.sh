@@ -96,7 +96,7 @@ ARGS=("${FLAGS[@]}")
 # works in this session; otherwise run claude directly.
 WRAPPER="$HOME/.claude/skills/switch-login/claude-login.sh"
 if [ "$ACCOUNT" = second ]; then FN=claude2; else FN=claude; fi
-NAME="claude-$(basename -- "$DIR" | tr -d '\n' | tr -c 'A-Za-z0-9_-' '-')-$(date +%H%M%S)"
+NAME="claude-$(basename -- "$DIR" | tr -d '\n' | tr -c 'A-Za-z0-9_-' '-')-$(date +%H%M%S)-$RANDOM"
 # The calling session's own variables must not leak into the new one (a tmux
 # server started from here inherits them), above all CLAUDE_CONFIG_DIR, which
 # picks the account.

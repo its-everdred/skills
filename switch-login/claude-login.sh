@@ -8,8 +8,10 @@
 # for the resumed session to start with Remote Control on (--remote-control), so
 # a user driving the session from the Claude app can pick it up again.
 _claude_login () {
-  local who=$1 f id rc a n skip has_rc st
-  f=${XDG_RUNTIME_DIR:-/tmp}/claude-switch-$$-$RANDOM
+  local who=$1 runtime f id rc a n skip has_rc st
+  runtime=${XDG_RUNTIME_DIR:-/tmp}
+  [ -d "$runtime" ] && [ -w "$runtime" ] || runtime=/tmp
+  f=$(mktemp "$runtime/claude-switch.XXXXXX") || return 1
   shift
   while :; do
     if [ "$who" = second ]; then
@@ -17,7 +19,7 @@ _claude_login () {
     else
       CLAUDE_SWITCH_FILE=$f command claude "$@"; st=$?
     fi
-    [ -s "$f" ] || return "$st"
+    if [ ! -s "$f" ]; then rm -f -- "$f"; return "$st"; fi
     id=$(sed -n 1p "$f"); rc=$(sed -n 2p "$f"); rm -f "$f"
     if [ "$who" = second ]; then who=default; else who=second; fi
     # Keep the original flags, but replace any session selection with the resume.
@@ -40,3 +42,15 @@ _claude_login () {
 }
 claude () { _claude_login default "$@"; }
 claude2 () { _claude_login second "$@"; }
+if [ -n "${CLAUDE_LOGIN2_NAME:-}" ]; then
+  case "$CLAUDE_LOGIN2_NAME" in
+    *[!A-Za-z0-9_-]*)
+      printf 'switch-login: ignoring invalid CLAUDE_LOGIN2_NAME: %s\n' "$CLAUDE_LOGIN2_NAME" >&2
+      ;;
+    *)
+      _claude_login_named_command="claude-$CLAUDE_LOGIN2_NAME"
+      eval "$_claude_login_named_command () { _claude_login second \"\$@\"; }"
+      unset _claude_login_named_command
+      ;;
+  esac
+fi

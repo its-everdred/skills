@@ -13,9 +13,14 @@
 # tmux session on the other account (with Remote Control on) instead, so this
 # also works when the user is driving the session remotely from the Claude app.
 set -euo pipefail
+umask 077
 
 id="${CLAUDE_CODE_SESSION_ID:?not inside a Claude Code session}"
 pid="${CLAUDE_PID:?not inside a Claude Code session}"
+case "$pid" in ''|*[!0-9]*) echo "switch-login: invalid CLAUDE_PID" >&2; exit 1 ;; esac
+[ "$pid" -gt 1 ] || { echo "switch-login: invalid CLAUDE_PID" >&2; exit 1; }
+runtime=${XDG_RUNTIME_DIR:-/tmp}
+[ -d "$runtime" ] && [ -w "$runtime" ] || runtime=/tmp
 
 rc=
 case "${1:-}" in
@@ -29,7 +34,7 @@ if [ -n "${CLAUDE_SWITCH_FILE:-}" ]; then
   printf '%s\n%s\n' "$id" "$rc" >"$CLAUDE_SWITCH_FILE"
   echo "Restarting on the other account${rc:+ with Remote Control}..."
   # Detached and delayed so this tool call returns before claude is stopped.
-  setsid sh -c "sleep 1; kill -TERM $pid" >/dev/null 2>&1 &
+  setsid sh -c 'sleep 1; kill -TERM "$1"' _ "$pid" >/dev/null 2>&1 &
   exit 0
 fi
 
@@ -46,5 +51,6 @@ echo "Not started through the wrapper: resuming in a new tmux session on the $ot
 # Read this session's permission flags now, before the process is gone, and
 # stop it before resuming so two processes never write the same transcript.
 mapfile -t flags < <("$launcher" --print-flags "$pid")
+log_id=$(printf '%s' "$id" | tr -c 'A-Za-z0-9_-' '_')
 setsid bash -c 'sleep 1; kill -TERM "$1"; sleep 2; shift; exec "$@"' \
-  _ "$pid" "$launcher" --account "$other" --resume "$id" "$dir" -- "${flags[@]}" >"${XDG_RUNTIME_DIR:-/tmp}/claude-switch-$id.log" 2>&1 &
+  _ "$pid" "$launcher" --account "$other" --resume "$id" "$dir" -- "${flags[@]}" >"$runtime/claude-switch-$log_id.log" 2>&1 &

@@ -4,6 +4,7 @@ Run two Claude Code accounts on one machine and move a live session between them
 
 - `claude` runs the default account (`~/.claude`).
 - `claude2` runs a second account from its own profile directory.
+- An optional machine-local name exposes the same profile as `claude-<name>`.
 - `/switch-login` restarts the current session in the same pane on the other
   account, with the conversation resumed. Other panes are not affected.
 
@@ -17,6 +18,7 @@ Each keeps its own credentials. Shell: bash or zsh.
 ```sh
 bash switch-login/scripts/setup.sh            # second profile in ~/.claude-2
 bash switch-login/scripts/setup.sh ~/elsewhere   # or any directory
+bash switch-login/scripts/setup.sh --name work   # also add claude-work
 ```
 
 Or run `/setup-switch-login` in a Claude session. The script:
@@ -24,7 +26,8 @@ Or run `/setup-switch-login` in a Claude session. The script:
 - creates the second profile and links the shared entries of `~/.claude` into it
   (`CLAUDE.md settings.json skills plugins projects todos file-history
   history.jsonl session-env shell-snapshots`; missing ones are skipped);
-- copies this skill (and the `new` skill, when it sits next to it) into `~/.claude/skills/`;
+- installs or refreshes this skill (and the `new` skill, when it sits next to
+  it) in `~/.claude/skills/`;
 - backs up your rc file and adds two lines to it (`~/.zshrc` for zsh, otherwise
   `~/.bashrc`; pick one with `--rc FILE`).
 
@@ -54,6 +57,7 @@ Add to `~/.bashrc` or `~/.zshrc`, then open a new shell, run `claude2` and `/log
 
 ```sh
 export CLAUDE_LOGIN2_DIR="$HOME/.claude-2"
+export CLAUDE_LOGIN2_NAME="work" # optional: adds claude-work
 source "$HOME/.claude/skills/switch-login/claude-login.sh"
 ```
 
@@ -61,7 +65,9 @@ source "$HOME/.claude/skills/switch-login/claude-login.sh"
 
 ### 3. Check
 
-- `type claude` and `type claude2` say they are functions ("shell function" in zsh, "function" in bash).
+- `type claude` and `type claude2` say they are functions ("shell function" in
+  zsh, "function" in bash). If `CLAUDE_LOGIN2_NAME` is set, so does
+  `type claude-<name>`.
 - `claude2`, then `/status`, shows the second account.
 - In a `claude` session, send one message and run `/switch-login`. The pane
   prints `switch-login: resuming on the second account` and the conversation

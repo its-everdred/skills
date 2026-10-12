@@ -16,9 +16,12 @@ Pass `rc` when the user asks for Remote Control (`/rc`) after the switch, and `n
 when they ask for it off. With no argument, the resumed session gets Remote Control
 when this one has it on, so a user on the Claude app keeps access.
 
-It restarts this session in the same pane on the other account (`claude` = default
-profile, `claude2` = the profile in `$CLAUDE_LOGIN2_DIR`; transcripts are shared), with the conversation
-resumed. Other panes are not affected.
+It restarts this session in the same pane on the other account (`claude` =
+default profile; `claude2` = the profile in `$CLAUDE_LOGIN2_DIR`; transcripts
+are shared), with the conversation resumed. Other panes are not affected. When
+`CLAUDE_LOGIN2_NAME` is set, `claude-$CLAUDE_LOGIN2_NAME` is a named command for
+the same second profile; this machine-local variable is the source of truth for
+the account name.
 
 If the session was not started through the shell wrapper (`claude-login.sh`, sourced
 from `~/.bashrc` or `~/.zshrc`), the script resumes it in a new tmux session on the

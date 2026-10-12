@@ -11,7 +11,7 @@ Open a new Claude Code session in a directory on this machine and turn on Remote
 
 1. **Resolve the directory** from the request, relative to the current working directory (`../folder` means a sibling of cwd). `~` means the home directory.
    - If it doesn't exist, stop and say so. Don't create it unless the user asked for that.
-2. **Pick the account.** By default, use the default account (`claude`). Add `--account second` for "my other/second account" or "claude2", and `--account other` for "the account this session isn't on". The second account is the switch-login profile in `CLAUDE_LOGIN2_DIR`; if it isn't set up, say so and point to `/setup-switch-login`.
+2. **Pick the account.** By default, use the default account (`claude`). Add `--account second` for "my other/second account", "claude2", or the optional name in `CLAUDE_LOGIN2_NAME`; add `--account other` for "the account this session isn't on". If the current session predates setup, read the exact `CLAUDE_LOGIN2_NAME` export from `~/.bashrc` or `~/.zshrc`. The second account is the switch-login profile in `CLAUDE_LOGIN2_DIR`; if it isn't set up, say so and point to `/setup-switch-login`.
 3. **Run the launcher** (it ships with this skill):
    ```
    <skill dir>/scripts/new-chat.sh [--account default|second|other] <resolved dir>
