@@ -55,11 +55,30 @@ check "source line appears once after two runs" \
   '[ "$(grep -cxF "source \"\$HOME/.claude/skills/switch-login/claude-login.sh\"" "$HOME/.bashrc")" = 1 ]'
 check "account name appears once after two runs" \
   '[ "$(grep -cxF "export CLAUDE_LOGIN2_NAME=\"work\"" "$HOME/.bashrc")" = 1 ]'
+if bash -c 'source "$1"; [ "$(type -t claude-work)" = function ]' _ "$HOME/.bashrc"; then
+  ok "generated rc defines the named command"
+else
+  fail "generated rc defines the named command"
+fi
 check "rc backed up before the first edit" 'ls "$HOME"/.bashrc.bak.* >/dev/null 2>&1'
 check "only one backup after two runs" '[ "$(ls "$HOME"/.bashrc.bak.* | wc -l)" = 1 ]'
 check "skill installed" '[ -f "$HOME/.claude/skills/switch-login/claude-login.sh" ]'
 check "second run says nothing changed" 'grep -q "nothing changed" <<<"$out2"'
 check "prints the login step" 'grep -q "/login" <<<"$out1"'
+
+# Version 1 appended a newly introduced name after an existing source line.
+# Re-running setup must migrate that order so the sourced wrapper sees the name.
+printf '%s\n' \
+  "export CLAUDE_LOGIN2_DIR=\"$P\"" \
+  'source "$HOME/.claude/skills/switch-login/claude-login.sh"' \
+  'export CLAUDE_LOGIN2_NAME="work"' > "$HOME/.bashrc"
+legacy_out=$(bash "$HERE/setup.sh" --name work 2>&1)
+if bash -c 'source "$1"; [ "$(type -t claude-work)" = function ]' _ "$HOME/.bashrc"; then
+  ok "repairs legacy rc ordering"
+else
+  fail "repairs legacy rc ordering"
+fi
+check "reports the rc ordering repair" 'grep -q "moved.*source.*after.*name" <<<"$legacy_out"'
 
 printf '# stale\n' > "$HOME/.claude/skills/switch-login/claude-login.sh"
 out3=$(bash "$HERE/setup.sh" --name work 2>&1)
