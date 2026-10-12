@@ -111,25 +111,40 @@ if [ -d "$NEW_SRC" ] && [ ! -e "$NEW_DST" ]; then
 elif [ -d "$NEW_SRC" ] && [ -d "$NEW_DST" ] && [ "$(realpath -m -- "$NEW_SRC")" != "$(realpath -m -- "$NEW_DST")" ] && ! diff -qr -- "$NEW_SRC" "$NEW_DST" >/dev/null; then
   cp -R -- "$NEW_SRC/." "$NEW_DST/"; changes+=("updated the new skill in $NEW_DST")
 fi
-need_export=1 need_source=1 need_name=0
+need_export=1 need_source=1 need_name=0 reorder_source=0
 if [ -f "$RC" ]; then
   grep -qxF -- "$EXPORT_LINE" "$RC" && need_export=0
   grep -qxF -- "$SOURCE_LINE" "$RC" && need_source=0
-  if [ -n "$NAME" ]; then need_name=1; grep -qxF -- "$NAME_LINE" "$RC" && need_name=0; fi
+  if [ -n "$NAME" ]; then
+    need_name=1
+    grep -qxF -- "$NAME_LINE" "$RC" && need_name=0
+    if [ "$need_name" = 0 ] && [ "$need_source" = 0 ]; then
+      source_line_number=$(awk -v line="$SOURCE_LINE" '$0 == line { print NR; exit }' "$RC")
+      name_line_number=$(awk -v line="$NAME_LINE" '$0 == line { print NR; exit }' "$RC")
+      [ "$source_line_number" -gt "$name_line_number" ] || reorder_source=1
+    fi
+  fi
 elif [ -n "$NAME" ]; then
   need_name=1
 fi
-if [ "$need_export$need_source$need_name" != 000 ]; then
+if [ "$need_export$need_source$need_name$reorder_source" != 0000 ]; then
   if [ -f "$RC" ]; then
     bak="$RC.bak.$(date -u +%Y%m%dT%H%M%SZ)"
     cp -p -- "$RC" "$bak"; changes+=("backed up $RC to $bak")
+  fi
+  if [ "$reorder_source" = 1 ]; then
+    tmp_rc=$(mktemp)
+    awk -v line="$SOURCE_LINE" '$0 != line' "$RC" > "$tmp_rc"
+    cat -- "$tmp_rc" > "$RC"
+    rm -f -- "$tmp_rc"
+    changes+=("moved the source line after the account name in $RC")
   fi
   {
     [ ! -s "$RC" ] || [ -z "$(tail -c1 -- "$RC")" ] || echo
     echo "# switch-login: second Claude account"
     [ "$need_export" = 0 ] || echo "$EXPORT_LINE"
-    [ "$need_source" = 0 ] || echo "$SOURCE_LINE"
     [ "$need_name" = 0 ] || echo "$NAME_LINE"
+    [ "$need_source" = 0 ] && [ "$reorder_source" = 0 ] || echo "$SOURCE_LINE"
   } >> "$RC"
   [ "$need_export" = 0 ] || changes+=("added to $RC: $EXPORT_LINE")
   [ "$need_source" = 0 ] || changes+=("added to $RC: $SOURCE_LINE")
