@@ -135,8 +135,12 @@ for _ in $(seq 1 60); do
   fi
 done
 
-if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v gnome-terminal >/dev/null; then
-  gnome-terminal --title="$NAME" -- tmux attach -t "$NAME" >/dev/null 2>&1 || true
+if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+  if command -v gnome-terminal >/dev/null; then
+    gnome-terminal --title="$NAME" -- tmux attach -t "$NAME" >/dev/null 2>&1 || true
+  elif command -v xdg-terminal-exec >/dev/null; then # Omarchy and other non-GNOME desktops
+    setsid -f xdg-terminal-exec --title="$NAME" -e tmux attach -t "$NAME" </dev/null >/dev/null 2>&1 || true
+  fi
 fi
 
 echo "session: $NAME"
