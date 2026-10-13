@@ -7,10 +7,13 @@ here="$(cd "$(dirname "$0")" && pwd)"
 REMIND="${REMIND_FILE:-$HOME/remind.md}"
 
 changes="$("$here/sync.sh" 2>/dev/null)"
-# Open items that are due: no date, or a date of today or earlier.
+# Open items that are due (no date, or a date of today or earlier), each with the indented
+# lines under it, which carry the ctx pointer back to the chat that added it.
 due=""
 [ -f "$REMIND" ] && due="$(awk -v today="$(date +%F)" '
-  /^- \[ \]/ { if (match($0, /^- \[ \] [0-9]{4}-[0-9]{2}-[0-9]{2} /) && substr($0, 7, 10) > today) next; print }
+  /^- \[/ { keep = /^- \[ \]/ && !(match($0, /^- \[ \] [0-9]{4}-[0-9]{2}-[0-9]{2} /) && substr($0, 7, 10) > today) }
+  /^- / || /^  / { if (keep) print; next }
+  { keep = 0 }
 ' "$REMIND")"
 
 ctx=""
@@ -19,7 +22,7 @@ if [ -n "$changes" ]; then
 fi
 if [ -n "$due" ]; then
   ctx+="Due reminders from $REMIND (see the remind skill):"$'\n'"$due"$'\n'
-  ctx+="In your first reply, remind the user of each one: one line each, the command and its reason. If you can cheaply check that an item is already done (e.g. a container is gone), check first and offer to tick it off instead."$'\n'
+  ctx+="In your first reply, remind the user of each one: one line each, the command and its reason. If you can cheaply check that an item is already done (e.g. a container is gone), check first and offer to tick it off instead. When an item needs more background, read the chat that added it: $HOME/github/skills/remind/scripts/log.sh <transcript path from its ctx line>."$'\n'
 fi
 [ -z "$ctx" ] && exit 0
 
