@@ -1,0 +1,55 @@
+{
+  "claude": {
+    "marketplaces": [
+      {"name": "claude-plugins-official", "source": "anthropics/claude-plugins-official"},
+      {"name": "every-marketplace", "source": "EveryInc/compound-engineering-plugin"},
+      {"name": "trailofbits", "source": "trailofbits/skills"},
+      {"name": "ethskills", "source": "austintgriffith/ethskills"},
+      {"name": "claude-code-skills", "source": "alirezarezvani/claude-skills"},
+      {"name": "i-have-adhd", "source": "ayghri/i-have-adhd"},
+      {"name": "maurelians-claude-marketplace", "source": "maurelian/maurelians-claude-marketplace"},
+      {"name": "khala", "source": "aiur-team/khala"},
+      {"name": "ponytail", "source": "DietrichGebert/ponytail"},
+      {"name": "netlify-context-and-tools", "source": "netlify/context-and-tools"}
+    ],
+    "plugins": [
+      {"id": "gopls-lsp@claude-plugins-official", "version": "1.0.0"},
+      {"id": "superpowers@claude-plugins-official", "version": "6.4.1"},
+      {"id": "frontend-design@claude-plugins-official", "version": "87bc24ab561c"},
+      {"id": "compound-engineering@every-marketplace", "version": "3.8.0"},
+      {"id": "sharp-edges@trailofbits", "version": "1.0.0"},
+      {"id": "ethskills@ethskills", "version": "1.0.0"},
+      {"id": "engineering-skills@claude-code-skills", "version": "2.9.0"},
+      {"id": "engineering-advanced-skills@claude-code-skills", "version": "2.9.0"},
+      {"id": "product-skills@claude-code-skills", "version": "2.9.0"},
+      {"id": "i-have-adhd@i-have-adhd", "version": "0.1.0"},
+      {"id": "herdr-collab@maurelians-claude-marketplace", "version": "0.2.0"},
+      {"id": "khala@khala", "version": "0.4.2"},
+      {"id": "ponytail@ponytail", "version": "5.2.0"},
+      {"id": "netlify-skills@netlify-context-and-tools", "version": "1.7.0", "commit": "dc9ebf1b994420a4791e9d5d7cd68f62e07a0a41"}
+    ]
+  },
+  "codex": {
+    "skills": [
+      {
+        "repo": "https://github.com/netlify/context-and-tools.git",
+        "ref": "dc9ebf1b994420a4791e9d5d7cd68f62e07a0a41",
+        "subpath": "codex/skills",
+        "dest": "~/.codex/skills"
+      }
+    ]
+  },
+  "private": {
+    "_note": "NOT installed by sync-external.sh (the script never reads this key). Internal Optimism marketplaces: need GitHub auth to the ethereum-optimism org. Install by hand: claude plugin marketplace add <source>; claude plugin install <id>.",
+    "claude": {
+      "marketplaces": [
+        {"name": "op-claude-marketplace", "source": "ethereum-optimism/op-claude-marketplace"},
+        {"name": "op-data-marketplace", "source": "https://github.com/ethereum-optimism/op-data-agents.git"}
+      ],
+      "plugins": [
+        {"id": "op-eng-skills@op-claude-marketplace", "version": "0.33.0"},
+        {"id": "op-data@op-data-marketplace", "version": "1.2.0"}
+      ]
+    }
+  }
+}
