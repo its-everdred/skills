@@ -14,3 +14,14 @@ Personal [Claude Code](https://docs.claude.com/en/docs/claude-code) skills.
 | [`switch-login`](./switch-login) | Run two Claude Code accounts on one machine (`claude` for the default account; `claude2` or an optional `claude-<name>` for the second, with shared settings, skills and transcripts) and move a live session to the other account in place with `/switch-login`, keeping Remote Control on so it still works from the Claude app. | bash or zsh · optional `tmux` + the `new` skill |
 
 Dependencies are the review lenses the skill leverages — **recommended, not required**. The skill is skill-agnostic and falls back to role-prompted general agents when a lens isn't installed; it also recommends installing a stronger lens set when the agent is thin. (`superpowers:writing-skills` was used to author it.)
+
+## External skills
+
+Skills from third-party plugins and marketplaces are not stored here. They are listed in [`external-skills.json`](./external-skills.json) (Claude Code marketplaces and plugins, plus Codex skill sources pinned to a commit). After a `git pull` on any machine, run:
+
+```bash
+./sync-external.sh --dry-run   # preview
+./sync-external.sh             # apply
+```
+
+It needs `jq`, and uses the `claude` and `codex` CLIs when present. It is idempotent: it only adds missing marketplaces and plugins, never overwrites an existing Codex skill that differs from the pinned copy, and never runs code from the cloned repos. Claude plugin versions in the manifest are recorded, not enforced (`claude plugin install` cannot pin). Internal marketplaces sit under the `private` key, which the script ignores.
