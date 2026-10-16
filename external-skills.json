@@ -16,7 +16,7 @@
       {"id": "gopls-lsp@claude-plugins-official", "version": "1.0.0"},
       {"id": "superpowers@claude-plugins-official", "version": "6.4.1"},
       {"id": "frontend-design@claude-plugins-official", "version": "87bc24ab561c"},
-      {"id": "compound-engineering@every-marketplace", "version": "3.8.0"},
+      {"id": "compound-engineering@every-marketplace", "version": "3.8.0", "commit": "63e76cf67f08aac6f0dccf275ce328e47deae541"},
       {"id": "sharp-edges@trailofbits", "version": "1.0.0"},
       {"id": "ethskills@ethskills", "version": "1.0.0"},
       {"id": "engineering-skills@claude-code-skills", "version": "2.9.0"},
