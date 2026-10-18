@@ -45,6 +45,26 @@ if [ -n "$transcript" ] && command -v jq >/dev/null; then
     goal="Resumed on the other account by /switch-login. Continue working toward the active goal."
 fi
 
+if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then other=default; else other=second; fi
+dir=$(readlink "/proc/$pid/cwd" 2>/dev/null || pwd)
+
+# This folder is trusted on this account (the session runs in it), so carry that
+# over: otherwise the resumed session stops at the folder-trust prompt, which a
+# user on the Claude app cannot answer.
+if [ "$other" = default ]; then cfg="$HOME/.claude.json"; else cfg="${CLAUDE_LOGIN2_DIR:-}/.claude.json"; fi
+# ponytail: a session already running on that account may rewrite its config at the same moment; rare, and the cost is one prompt.
+if [ -f "$cfg" ] && command -v node >/dev/null; then
+  node -e '
+    const fs = require("fs"), [cfg, dir] = process.argv.slice(1)
+    const j = JSON.parse(fs.readFileSync(cfg, "utf8"))
+    const p = (j.projects ||= {})[dir] ||= {}
+    if (p.hasTrustDialogAccepted) process.exit(0)
+    p.hasTrustDialogAccepted = true
+    fs.writeFileSync(cfg + ".switch-tmp", JSON.stringify(j, null, 2), { mode: 0o600 })
+    fs.renameSync(cfg + ".switch-tmp", cfg)
+  ' "$cfg" "$dir" || echo "switch-login: could not mark $dir trusted on the $other account" >&2
+fi
+
 if [ -n "${CLAUDE_SWITCH_FILE:-}" ]; then
   printf '%s\n%s\n%s\n' "$id" "$rc" "$goal" >"$CLAUDE_SWITCH_FILE"
   echo "Restarting on the other account${rc:+ with Remote Control}${goal:+, continuing the goal}..."
@@ -54,9 +74,7 @@ if [ -n "${CLAUDE_SWITCH_FILE:-}" ]; then
 fi
 
 # Not under the wrapper: relaunch in tmux on the other account.
-if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then other=default; else other=second; fi
 launcher="$HOME/.claude/skills/new/scripts/new-chat.sh"
-dir=$(readlink "/proc/$pid/cwd" 2>/dev/null || pwd)
 if ! command -v tmux >/dev/null || [ ! -x "$launcher" ]; then
   if [ "$other" = default ]; then cmd=claude; else cmd=claude2; fi
   echo "This session was not started through the wrapper. Exit and run: $cmd --resume $id"
