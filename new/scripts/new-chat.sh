@@ -120,7 +120,8 @@ for _ in $(seq 1 60); do
   tmux has-session -t "$NAME" 2>/dev/null || { echo "claude exited during startup" >&2; exit 1; }
   pane=$(tmux capture-pane -p -t "$NAME")
   if grep -qiE "trust (the files|this folder)|Do you trust" <<<"$pane"; then
-    tmux send-keys -t "$NAME" Enter
+    # The prompt may open on "No, exit"; move to the "Yes" option before confirming.
+    if grep -qE "❯ *(1\. *)?Yes" <<<"$pane"; then tmux send-keys -t "$NAME" Enter; else tmux send-keys -t "$NAME" Down; fi
     continue
   fi
   if grep -qiE "\? for shortcuts|shift\+tab to cycle|remote-control is active" <<<"$pane"; then
