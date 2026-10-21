@@ -6,21 +6,23 @@
 #
 # Switch file format: line 1 is the session id. An optional line 2 of "rc" asks
 # for the resumed session to start with Remote Control on (--remote-control), so
-# a user driving the session from the Claude app can pick it up again.
+# a user driving the session from the Claude app can pick it up again. An
+# optional line 3 is a message to start the resumed session with; switch.sh
+# writes one when the session has an active /goal, so it keeps working on it.
 _claude_login () {
-  local who=$1 runtime f id rc a n skip has_rc st
+  local who=$1 runtime f id rc kick= a n skip has_rc st
   runtime=${XDG_RUNTIME_DIR:-/tmp}
   [ -d "$runtime" ] && [ -w "$runtime" ] || runtime=/tmp
   f=$(mktemp "$runtime/claude-switch.XXXXXX") || return 1
   shift
   while :; do
     if [ "$who" = second ]; then
-      CLAUDE_SWITCH_FILE=$f CLAUDE_CONFIG_DIR="${CLAUDE_LOGIN2_DIR:?set CLAUDE_LOGIN2_DIR to the second profile directory}" command claude "$@"; st=$?
+      CLAUDE_SWITCH_FILE=$f CLAUDE_CONFIG_DIR="${CLAUDE_LOGIN2_DIR:?set CLAUDE_LOGIN2_DIR to the second profile directory}" command claude "$@" ${kick:+"$kick"}; st=$?
     else
-      CLAUDE_SWITCH_FILE=$f command claude "$@"; st=$?
+      CLAUDE_SWITCH_FILE=$f command claude "$@" ${kick:+"$kick"}; st=$?
     fi
     if [ ! -s "$f" ]; then rm -f -- "$f"; return "$st"; fi
-    id=$(sed -n 1p "$f"); rc=$(sed -n 2p "$f"); rm -f "$f"
+    id=$(sed -n 1p "$f"); rc=$(sed -n 2p "$f"); kick=$(sed -n 3p "$f"); rm -f "$f"
     if [ "$who" = second ]; then who=default; else who=second; fi
     # Keep the original flags, but replace any session selection with the resume.
     n=$#; skip=0; has_rc=0
@@ -34,6 +36,7 @@ _claude_login () {
         *) set -- "$@" "$a" ;;
       esac
     done
+    # kick is kept out of "$@" so it is sent once, not again on the next switch.
     set -- "$@" --resume "$id"
     if [ "$rc" = rc ] && [ "$has_rc" = 0 ]; then set -- "$@" --remote-control; fi
     stty sane 2>/dev/null

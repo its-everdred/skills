@@ -18,7 +18,9 @@ when this one has it on, so a user on the Claude app keeps access.
 
 It restarts this session in the same pane on the other account (`claude` =
 default profile; `claude2` = the profile in `$CLAUDE_LOGIN2_DIR`; transcripts
-are shared), with the conversation resumed. Other panes are not affected. When
+are shared), with the conversation resumed. Other panes are not affected. An
+unfinished `/goal` is restored by the resume, and the resumed session is started
+with a message to keep working toward it. When
 `CLAUDE_LOGIN2_NAME` is set, `claude-$CLAUDE_LOGIN2_NAME` is a named command for
 the same second profile; this machine-local variable is the source of truth for
 the account name.
