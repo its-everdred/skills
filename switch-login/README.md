@@ -6,7 +6,9 @@ Run two Claude Code accounts on one machine and move a live session between them
 - `claude2` runs a second account from its own profile directory.
 - An optional machine-local name exposes the same profile as `claude-<name>`.
 - `/switch-login` restarts the current session in the same pane on the other
-  account, with the conversation resumed. Other panes are not affected.
+  account, with the conversation resumed. Other panes are not affected. An
+  unfinished `/goal` comes along too, and the resumed session keeps working on
+  it without waiting for input (needs `jq`).
 
 Both profiles share settings, skills, plugins, project memory and transcripts.
 Each keeps its own credentials. Shell: bash or zsh.

@@ -130,6 +130,43 @@ check "wrapper falls back when XDG_RUNTIME_DIR is not writable" \
   'case "$(cat "$T/switch-path")" in /tmp/claude-switch.*) true ;; *) false ;; esac'
 check "wrapper removes the fallback switch file" '[ ! -e "$(cat "$T/switch-path")" ]'
 
+# A switch with an active goal starts the resumed session with a message, so it
+# keeps working instead of waiting for input. The message must not be replayed
+# on a later switch, or every switch would re-send it.
+cp "$T/bin/claude" "$T/bin/claude.orig"
+cat > "$T/bin/claude" <<'EOF2'
+#!/usr/bin/env bash
+n=$(cat "$T/runs" 2>/dev/null || echo 0); echo $((n + 1)) > "$T/runs"
+printf '%s\n' "$@" > "$T/args-$n"
+case $n in
+  0) printf 'sess-1\n\nkeep going\n' > "$CLAUDE_SWITCH_FILE" ;;
+  1) printf 'sess-1\n\n' > "$CLAUDE_SWITCH_FILE" ;;
+esac
+EOF2
+bash -c 'source "$1"; claude --dangerously-skip-permissions' _ "$HERE/../claude-login.sh" >/dev/null
+check "wrapper starts a goal session with the message" \
+  '[ "$(tail -n1 "$T/args-1")" = "keep going" ]'
+check "wrapper does not resend the message on the next switch" \
+  '! grep -qx "keep going" "$T/args-2"'
+mv "$T/bin/claude.orig" "$T/bin/claude"
+
+# switch.sh reads the goal from the transcript: only an unfinished goal (last
+# goal_status neither met nor failed) should make the resumed session continue.
+mkdir -p "$T/cfg/projects/p"
+goal_line() { printf '{"type":"attachment","attachment":{"type":"goal_status","met":%s,"condition":"tests pass"}}\n' "$1"; }
+switch_goal() {
+  sleep 30 & local pid=$!
+  CLAUDE_CONFIG_DIR="$T/cfg" CLAUDE_CODE_SESSION_ID=sess-g CLAUDE_PID=$pid CLAUDE_SWITCH_FILE="$T/switch-goal" \
+    bash "$HERE/switch.sh" no-rc >/dev/null
+  sed -n 3p "$T/switch-goal"
+}
+goal_line false > "$T/cfg/projects/p/sess-g.jsonl"
+check "switch asks to continue an active goal" '[ -n "$(switch_goal)" ]'
+{ goal_line false; goal_line true; } > "$T/cfg/projects/p/sess-g.jsonl"
+check "switch does not continue a met goal" '[ -z "$(switch_goal)" ]'
+printf '{"type":"user","message":"goal_status"}\n' > "$T/cfg/projects/p/sess-g.jsonl"
+check "switch ignores goal_status text that is not a goal record" '[ -z "$(switch_goal)" ]'
+
 # The optional named command is intentionally equivalent to claude2. It gives
 # each machine a memorable command without introducing a third profile.
 bash -c 'source "$1"; claude-work --version' _ "$HERE/../claude-login.sh" >/dev/null
