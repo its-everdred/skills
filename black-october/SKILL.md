@@ -5,11 +5,11 @@ description: Use when the user says "/black-october" or asks to check a codebase
 
 # Black October
 
-Run the `security-audit` skill with the current incident context. This skill adds context and sources. It does not change how `security-audit` works.
+Run the [`security-audit` skill](https://github.com/cloudflare/security-audit-skill) from Cloudflare with the current incident context. This skill adds context and sources. It does not change how `security-audit` works.
 
 ## Steps
 
-1. Invoke `security-audit` with the Skill tool. Pass the user's arguments. Follow its mode rules (guidance or full audit). If the skill is missing, run `~/github/skills/skill-sync/scripts/sync.sh`.
+1. Invoke `security-audit` with the Skill tool. Pass the user's arguments. Follow its mode rules (guidance or full audit). If the skill is not installed, point the user to its [repository](https://github.com/cloudflare/security-audit-skill).
 2. Give the audit agents the snapshot and the rules below.
 3. Before you trust the snapshot, refresh it from the sources below. Record the fetch time of each source.
 4. Check the target against the refreshed facts. Report each match with its file and version.
