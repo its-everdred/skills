@@ -11,7 +11,7 @@ Personal [Claude Code](https://docs.claude.com/en/docs/claude-code) skills.
 | [`publish-mobile-app`](./publish-mobile-app) | Bootstrap an app-agnostic set of deploy/screenshot scripts into an Expo React Native + web project and run the full lifecycle of publishing a mobile app to both the Apple App Store (TestFlight) and Google Play — iOS/Android setup + upload, store screenshots, and version bumps. App identity is derived at runtime from `app.json`/`.env`. | `expo`/`eas` CLI · `xcodebuild` · `keytool` · `sips` · Playwright · `jq`/`node` |
 | [`remind`](./remind) | `/remind`: keeps `~/remind.md`, a checklist of commands to run on this machine (command, reason, optional due date, and a link back to the chat that added it, so a later agent can read that chat's log). Every new Claude Code or Codex chat surfaces the due items through the `skill-sync` hook. | the `skill-sync` hook |
 | [`setup-switch-login`](./setup-switch-login) | `/setup-switch-login`: creates the second profile, links shared entries, installs the skill, and adds the wrapper to your shell rc. An optional machine-local name exposes `claude-<name>` alongside `claude2`. | bash · the `switch-login` skill |
-| [`skill-sync`](./skill-sync) | Links every skill in this repo into `~/.claude/skills` and `~/.codex/skills`, and installs a SessionStart hook in both so each new chat pulls the repo and links new skills. Set up a machine once with `skill-sync/scripts/install.sh`. | bash · git · python3 · Claude Code and/or Codex |
+| [`skill-sync`](./skill-sync) | Links every skill in this repo into `~/.claude/skills`, `~/.codex/skills` and `~/.agents/skills`, installs the pinned `shared` external skills, and installs a SessionStart hook in both so each new chat pulls the repo and links new skills. Set up a machine once with `skill-sync/scripts/install.sh`. | bash · git · python3 · Claude Code and/or Codex |
 | [`switch-login`](./switch-login) | Run two Claude Code accounts on one machine (`claude` for the default account; `claude2` or an optional `claude-<name>` for the second, with shared settings, skills and transcripts) and move a live session to the other account in place with `/switch-login`, keeping Remote Control on so it still works from the Claude app. | bash or zsh · optional `tmux` + the `new` skill |
 
 Dependencies are the review lenses the skill leverages — **recommended, not required**. The skill is skill-agnostic and falls back to role-prompted general agents when a lens isn't installed; it also recommends installing a stronger lens set when the agent is thin. (`superpowers:writing-skills` was used to author it.)
@@ -26,3 +26,13 @@ Skills from third-party plugins and marketplaces are not stored here. They are l
 ```
 
 It needs `jq`, and uses the `claude` and `codex` CLIs when present. It is idempotent: it only adds missing marketplaces and plugins, never overwrites an existing Codex skill that differs from the pinned copy, and never runs code from the cloned repos. Claude plugin versions in the manifest are recorded, not enforced (`claude plugin install` cannot pin). Internal marketplaces sit under the `private` key, which the script ignores.
+
+### Shared skills
+
+The `shared` section lists pinned skill sources (`repo`, `ref`, `subpath`, optional `dest`, default `~/.agents/skills`, which Codex and OpenCode scan). Each skill is copied there and linked into `~/.claude/skills`. A differing existing skill is kept and reported. Pins change only by editing the manifest.
+
+```bash
+./sync-external.sh --shared-only   # shared section only; combine with --dry-run to preview
+```
+
+`skill-sync/scripts/sync.sh` runs this on every sync and prints changes and failures. Tests: `skill-sync/tests/sync-test.sh`.

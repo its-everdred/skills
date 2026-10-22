@@ -10,17 +10,31 @@
 set -u
 
 REPO="${SKILLS_REPO:-$HOME/github/skills}"
-TARGETS=("$HOME/.claude/skills" "$HOME/.codex/skills")
+TARGETS=("$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.agents/skills")
 
 [ -d "$REPO/.git" ] || exit 0
 
+# macOS has no `timeout`; python3 is already required by the hook. Kills the whole group on expiry.
+with_timeout() {
+  python3 -I -c '
+import os, signal, subprocess, sys
+p = subprocess.Popen(sys.argv[2:], start_new_session=True)
+try:
+    sys.exit(p.wait(timeout=float(sys.argv[1])))
+except subprocess.TimeoutExpired:
+    os.killpg(p.pid, signal.SIGKILL)
+    sys.exit(124)
+' "$@"
+}
+
 if [ "$(git -C "$REPO" branch --show-current 2>/dev/null)" = main ] &&
    [ -z "$(git -C "$REPO" status --porcelain 2>/dev/null)" ]; then
-  timeout 8 git -C "$REPO" pull --ff-only --quiet >/dev/null 2>&1 || true
+  with_timeout 8 git -C "$REPO" pull --ff-only --quiet >/dev/null 2>&1 || true
 fi
 
 for target in "${TARGETS[@]}"; do
-  [ -d "$(dirname "$target")" ] || continue   # that agent isn't installed here
+  # that agent isn't installed here (~/.agents is shared by clients, so always created)
+  [ "$target" = "$HOME/.agents/skills" ] || [ -d "$(dirname "$target")" ] || continue
   mkdir -p "$target"
 
   for skill in "$REPO"/*/SKILL.md; do
@@ -40,3 +54,10 @@ for target in "${TARGETS[@]}"; do
     esac
   done
 done | sort -u
+
+# Shared external skills (pinned in external-skills.json). Only changes and failures are printed.
+if [ -x "$REPO/sync-external.sh" ]; then
+  out="$(with_timeout 120 "$REPO/sync-external.sh" --shared-only 2>&1)"; rc=$?
+  printf '%s\n' "$out" | grep -E '^  (installed|skip|linked|clone failed)' | sed 's/^  /shared: /'
+  [ "$rc" = 0 ] || echo "shared: external sync FAILED (exit $rc)"
+fi
