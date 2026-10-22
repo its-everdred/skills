@@ -39,6 +39,16 @@
       }
     ]
   },
+  "shared": {
+    "skills": [
+      {
+        "repo": "https://github.com/cloudflare/security-audit-skill.git",
+        "ref": "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8",
+        "subpath": "skills",
+        "dest": "~/.agents/skills"
+      }
+    ]
+  },
   "private": {
     "_note": "NOT installed by sync-external.sh (the script never reads this key). Internal Optimism marketplaces: need GitHub auth to the ethereum-optimism org. Install by hand: claude plugin marketplace add <source>; claude plugin install <id>.",
     "claude": {
