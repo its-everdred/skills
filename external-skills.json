@@ -46,6 +46,12 @@
         "ref": "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8",
         "subpath": "skills",
         "dest": "~/.agents/skills"
+      },
+      {
+        "repo": "https://github.com/elayadesign/ai-design-skills.git",
+        "ref": "a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+        "subpath": "skills",
+        "dest": "~/.agents/skills"
       }
     ]
   },
