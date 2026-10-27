@@ -7,6 +7,8 @@ description: Use when upstream branch changes need propagating through stacked P
 
 Synchronize dependent branches. Updating a branch is not approval to merge its PR.
 
+**Run the cascade in the background, never in the foreground conversation.** Use the listener below or a background agent, so the conversation stays free. The foreground does only the PR the user is focused on, if they ask for it by name.
+
 ## Choose before writing
 
 Read-only inspection (fetch, `gh` reads) may run first; no branch writes, pushes or background launch until the strategy is known. Ask: **“Rebase (default) or merge for this stack?”** Recommend rebase by default, but wait for the answer. If the current request already specifies a strategy, acknowledge it instead of asking again. A default is not consent. Explain that rebase rewrites published commits and requires lease-protected pushes; merge preserves history.
@@ -32,8 +34,26 @@ Snapshot every old boundary before the first update. Publish each parent before 
 
 Resolve conflicts only when intent is clear, preserving validation, authorization and error handling. Run the repository's affected tests, typechecks and lint before publishing each child. If checks fail, stop that dependency chain and report the failure; never report skipped checks as passing. A lease rejection means another writer moved the branch: stop that chain, fetch, re-snapshot, report the new tip and wait for direction. Never retry with a broader force or a lease against the new tip without review. If a chain fails midway, report each branch's pre-update and current SHA.
 
+## Automatic listener (default for rebase)
+
+Use `scripts/autorebase.sh` for keeping a stack current. **No agent is needed unless it reports a conflict.**
+
+```bash
+git worktree add --detach <dir>   # clean checkout the script may reset freely
+bash <skill-dir>/scripts/autorebase.sh --repo OWNER/NAME --worktree <dir> PR1 PR2 PR3   # bottom first
+```
+
+Run it under the host's monitor (Monitor in Claude Code, max 30 minutes, re-arm on expiry). Add `--dry-run` first to see the boundaries it will use.
+
+- **Acts when** the bottom open PR is behind the default branch, or a child is not on top of its parent. It then rebases the whole open stack in order and publishes it in one `git push --atomic` with a lease pinned to each current head, so the stack never shows as diverged between pushes.
+- **Boundaries** come from the parent's current head, the reflog (`merge-base --fork-point`) and heads the script replaced earlier. After a parent merges, the next PR is rebased onto the default branch from the parent's final head.
+- **Events** are single lines: `REBASED`, `MERGED`, `DONE`, `CONFLICT`, `STOP`. A `REBASED` line lists PRs that were approved before the push, because a push may reset an approval.
+- **Exit 2 / `CONFLICT`:** nothing was pushed. Only now start a background agent to resolve it, with the strategy and snapshots from the event. **Exit 1 / `STOP`:** a human decision (closed PR, lease rejection, boundary not found).
+- It runs no tests. Use it only when CI is the gate; otherwise verify before pushing as in the sections above.
+- It never merges, comments, retargets, approves, or touches a branch outside the listed PRs.
+
 ## Watch and report
 
-Start a background listener only when requested, using the host's background/monitor facilities. Record the stack, strategy, snapshots and lock ownership. Recheck PR states and remote changes each iteration. A closed or merged PR or a changed base pauses that chain for reassessment, not automatic retargeting. A merged parent makes the recorded old boundary stale. Stop and release owned locks on cancellation; report unresolved operations without discarding them.
+Start a listener only when requested: `scripts/autorebase.sh` for rebase stacks, or the host's background/monitor facilities for anything else. Record the stack, strategy, snapshots and lock ownership. Recheck PR states and remote changes each iteration. A closed or merged PR or a changed base pauses that chain for reassessment, not automatic retargeting. A merged parent makes the recorded old boundary stale. Stop and release owned locks on cancellation; report unresolved operations without discarding them.
 
 Report updated branches/SHAs, checks, blockers and listener status. **Never approve, merge, close or retarget PRs, delete branches, or enable auto-merge without separate explicit authorization.**
