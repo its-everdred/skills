@@ -1,18 +1,19 @@
 #!/bin/bash
-# Keeps a stack of open PRs mergeable until each one merges. Does nothing while GitHub can merge them as they are.
-# Pushing to an approved PR can dismiss its approval and restarts CI, so it only acts when the bottom PR is
-# blocked (conflict, or a required up-to-date rule); --eager acts whenever it is merely behind the default branch.
+# Keeps a stack of open PRs up to date with the default branch until each one merges, propagating upstream changes.
+# While the bottom PR has no approval it follows every default-branch move. Once it is approved, a push restarts CI
+# and risks the approval, so it acts only when GitHub reports it blocked (conflict, or a required up-to-date rule).
+# --eager follows every move even when approved; --only-blocked acts only when blocked, approved or not.
 # Default mode (auto): a PR that is not yet approved is rebased and force-pushed with a lease, which keeps its
 # history clean; once a PR is approved it gets a merge commit and a fast-forward push, so the approval survives.
 # --merge treats every PR that way; --rebase rebases every PR (force-push with leases).
 # Pushes only to the stack's own branches. Never merges, comments, retargets or approves.
 #
-# usage: autorebase.sh --repo OWNER/NAME --worktree DIR [--merge|--rebase] [--eager] [--once] [--interval S] [--max-hours H] [--dry-run] PR...
+# usage: autorebase.sh --repo OWNER/NAME --worktree DIR [--merge|--rebase] [--eager|--only-blocked] [--once] [--interval S] [--max-hours H] [--dry-run] PR...
 #   PR...      PR numbers, bottom of the stack first
 #   --worktree a clean checkout of the repo this script may detach and reset freely
 # One line per event on stdout. Exit codes: 0 done, 1 stopped (needs a human), 2 rebase conflict.
 set -u
-REPO=""; WT=""; INTERVAL=45; MAXH=12; DRY=0; ONCE=0; MODE=auto; EAGER=0; PRS=()
+REPO=""; WT=""; INTERVAL=45; MAXH=12; DRY=0; ONCE=0; MODE=auto; EAGER=0; ONLYBLOCKED=0; PRS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --repo) REPO="$2"; shift 2;;
@@ -23,6 +24,7 @@ while [ $# -gt 0 ]; do
     --rebase) MODE=rebase; shift;;
     --merge) MODE=merge; shift;;
     --eager) EAGER=1; shift;;
+    --only-blocked) ONLYBLOCKED=1; shift;;
     --once) ONCE=1; shift;;
     *) PRS+=("$1"); shift;;
   esac
@@ -67,7 +69,9 @@ while [ $(( $(date +%s) - start )) -lt $(( MAXH * 3600 )) ]; do
   if [ "$behind" -gt 0 ]; then
     case "${MS[0]}" in
       BEHIND|DIRTY) need="#${OPEN[0]} is ${MS[0]} ($behind behind $DEFAULT)";;
-      *) [ "$EAGER" = 1 ] && need="#${OPEN[0]} is behind $DEFAULT by $behind";;
+      *) if [ "$ONLYBLOCKED" != 1 ] && { [ "${REV[0]}" != "APPROVED" ] || [ "$EAGER" = 1 ]; }; then
+           need="#${OPEN[0]} is behind $DEFAULT by $behind"
+         fi;;
     esac
   fi
   i=1
