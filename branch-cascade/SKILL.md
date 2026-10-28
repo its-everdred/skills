@@ -34,18 +34,18 @@ Snapshot every old boundary before the first update. Publish each parent before 
 
 Resolve conflicts only when intent is clear, preserving validation, authorization and error handling. Run the repository's affected tests, typechecks and lint before publishing each child. If checks fail, stop that dependency chain and report the failure; never report skipped checks as passing. A lease rejection means another writer moved the branch: stop that chain, fetch, re-snapshot, report the new tip and wait for direction. Never retry with a broader force or a lease against the new tip without review. If a chain fails midway, report each branch's pre-update and current SHA.
 
-## Automatic listener (default for rebase)
+## Automatic listener (default)
 
-Use `scripts/autorebase.sh` for keeping a stack current. **No agent is needed unless it reports a conflict.**
+Use `scripts/autorebase.sh` for keeping a stack current. **It adds merge commits and pushes fast-forward only: no force-push.** A force-push changes the merge-base and can dismiss approvals on every PR above it; a merge-commit update left approvals intact in the one case tested. Pass `--rebase` only when the user wants rewritten history; that mode force-pushes with leases. **No agent is needed unless it reports a conflict.**
 
 ```bash
 git worktree add --detach <dir>   # clean checkout the script may reset freely
 bash <skill-dir>/scripts/autorebase.sh --repo OWNER/NAME --worktree <dir> PR1 PR2 PR3   # bottom first
 ```
 
-Run it under the host's monitor (Monitor in Claude Code, max 30 minutes, re-arm on expiry). Add `--dry-run` first to see the boundaries it will use.
+Run it under the host's monitor (Monitor in Claude Code, max 30 minutes, re-arm on expiry). Add `--dry-run` first to see the planned heads, and `--once` to update a single time and exit.
 
-- **Acts when** the bottom open PR is behind the default branch, or a child is not on top of its parent. It then rebases the whole open stack in order and publishes it in one `git push --atomic` with a lease pinned to each current head, so the stack never shows as diverged between pushes.
+- **Acts when** the bottom open PR is behind the default branch, or a child is not on top of its parent. It then updates the whole open stack in order and publishes it in one `git push --atomic`, so the stack never shows as diverged between pushes. Each branch gets a merge commit whose tree is what a rebase would produce, with the old head and the new parent as parents, so the push is a fast-forward and the PR's diff stays its own changes.
 - **Boundaries** come from the parent's current head, the reflog (`merge-base --fork-point`) and heads the script replaced earlier. After a parent merges, the next PR is rebased onto the default branch from the parent's final head.
 - **Events** are single lines: `REBASED`, `MERGED`, `DONE`, `CONFLICT`, `STOP`. A `REBASED` line lists PRs that were approved before the push, because a push may reset an approval.
 - **Exit 2 / `CONFLICT`:** nothing was pushed. Only now start a background agent to resolve it, with the strategy and snapshots from the event. **Exit 1 / `STOP`:** a human decision (closed PR, lease rejection, boundary not found).
