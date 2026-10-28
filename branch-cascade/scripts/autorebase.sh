@@ -9,7 +9,7 @@
 # Pushes only to the stack's own branches. Never merges, comments, retargets or approves.
 #
 # usage: autorebase.sh --repo OWNER/NAME --worktree DIR [--merge|--rebase] [--eager|--only-blocked] [--once] [--interval S] [--max-hours H] [--dry-run] PR...
-#   PR...      PR numbers, bottom of the stack first
+#   PR...      PR numbers or branch names (a branch with no PR yet), bottom of the stack first
 #   --worktree a clean checkout of the repo this script may detach and reset freely
 # One line per event on stdout. Exit codes: 0 done, 1 stopped (needs a human), 2 rebase conflict.
 set -u
@@ -42,7 +42,18 @@ DEFAULT=$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.na
 UP="origin/$DEFAULT"
 start=$(date +%s)
 
-info(){ gh pr view "$1" --repo "$REPO" --json state,headRefName,headRefOid,baseRefName,reviewDecision,mergeStateStatus --jq '[.state,.headRefName,.headRefOid,.baseRefName,.reviewDecision,.mergeStateStatus]|@tsv' 2>/dev/null; }
+# One line "state|branch|head|base|review|mergeState" for a PR number, or for a branch name: its newest PR if it has one,
+# else open with no review (a stack branch that has no PR yet still follows its parent).
+info(){
+  local st br hd base rev ms
+  case "$1" in
+    ''|*[!0-9]*)
+      IFS='|' read -r st hd base rev ms < <(gh pr list --repo "$REPO" --head "$1" --state all --limit 1 --json state,headRefOid,baseRefName,reviewDecision,mergeStateStatus --jq '.[0] // empty | [.state,.headRefOid,.baseRefName,.reviewDecision,.mergeStateStatus] | join("|")' 2>/dev/null)
+      if [ -z "$st" ]; then hd=$(git rev-parse -q --verify "origin/$1") || return 1; st=OPEN; fi
+      echo "$st|$1|$hd|$base|$rev|$ms";;
+    *) gh pr view "$1" --repo "$REPO" --json state,headRefName,headRefOid,baseRefName,reviewDecision,mergeStateStatus --jq '[.state,.headRefName,.headRefOid,.baseRefName,.reviewDecision,.mergeStateStatus] | join("|")' 2>/dev/null;;
+  esac
+}
 # shas this script replaced for a PR, newest first
 recorded(){ awk -v p="$1" '$1=="old" && $2==p {a[++n]=$3} END{for(i=n;i>0;i--) print a[i]}' "$STATE"; }
 # first candidate sha that is an ancestor of $1
@@ -54,7 +65,7 @@ while [ $(( $(date +%s) - start )) -lt $(( MAXH * 3600 )) ]; do
   OPEN=(); HEAD=(); BR=(); REV=(); MS=(); mergedPR=""; mergedHead=""
   for n in "${PRS[@]}"; do
     line=$(info "$n"); [ -z "$line" ] && { sleep "$INTERVAL"; continue 2; }
-    IFS=$'\t' read -r st br hd base rev ms <<<"$line"
+    IFS='|' read -r st br hd base rev ms <<<"$line"
     case "$st" in
       OPEN) OPEN+=("$n"); HEAD+=("$hd"); BR+=("$br"); REV+=("$rev"); MS+=("$ms");;
       MERGED) mergedPR="$n"; mergedHead="$hd"

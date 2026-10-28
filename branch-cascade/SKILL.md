@@ -56,6 +56,19 @@ Run it under the host's monitor (Monitor in Claude Code, max 30 minutes, re-arm 
 - It runs no tests. Use it only when CI is the gate; otherwise verify before pushing as in the sections above.
 - It never merges, comments, retargets, approves, or touches a branch outside the listed PRs.
 
+## Always-on daemon (preferred for a long stack)
+
+Do not wait to be asked to rebase a stack that needs it. Install the stack as a launch agent so `scripts/cascade-daemon.sh` runs `autorebase.sh` forever, restarts it after a stop, pushes over HTTPS with the `gh` login (no ssh agent needed), and sends one macOS notification per distinct conflict or stop. List a PR number or, for a branch with no PR yet, its branch name, bottom first:
+
+```bash
+git worktree add --detach <dir>   # dedicated, never used by hand
+# ~/Library/LaunchAgents/local.branch-cascade.<name>.plist runs:
+#   bash <skill-dir>/scripts/cascade-daemon.sh --repo OWNER/NAME --worktree <dir> PR_OR_BRANCH...
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.branch-cascade.<name>.plist
+```
+
+Logs go to `<dir>.cascade.log` and `~/Library/Logs/branch-cascade/`. Stop it with `launchctl bootout gui/$(id -u)/local.branch-cascade.<name>`. It exits by itself when every listed PR has merged. Add a newly opened PR by adding its number to the plist and re-bootstrapping. A conflict is the only case that needs an agent or a human; the daemon leaves the branches untouched and notifies.
+
 ## Watch and report
 
 Start a listener only when requested, and not on PRs with auto-merge set: `scripts/autorebase.sh`, or the host's background/monitor facilities for anything else. Record the stack, strategy, snapshots and lock ownership. Recheck PR states and remote changes each iteration. A closed or merged PR or a changed base pauses that chain for reassessment, not automatic retargeting. A merged parent makes the recorded old boundary stale. Stop and release owned locks on cancellation; report unresolved operations without discarding them.
