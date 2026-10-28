@@ -1,15 +1,17 @@
 #!/bin/bash
-# Keeps a stack of open PRs up to date with the default branch until each one merges.
+# Keeps a stack of open PRs mergeable until each one merges. Does nothing while GitHub can merge them as they are.
+# Pushing to an approved PR can dismiss its approval and restarts CI, so it only acts when the bottom PR is
+# blocked (conflict, or a required up-to-date rule); --eager acts whenever it is merely behind the default branch.
 # Default mode adds merge commits and pushes fast-forward only: no force-push, no rewritten history.
 # --rebase rewrites the branches instead (force-push with leases).
 # Pushes only to the stack's own branches. Never merges, comments, retargets or approves.
 #
-# usage: autorebase.sh --repo OWNER/NAME --worktree DIR [--rebase] [--once] [--interval S] [--max-hours H] [--dry-run] PR...
+# usage: autorebase.sh --repo OWNER/NAME --worktree DIR [--rebase] [--eager] [--once] [--interval S] [--max-hours H] [--dry-run] PR...
 #   PR...      PR numbers, bottom of the stack first
 #   --worktree a clean checkout of the repo this script may detach and reset freely
 # One line per event on stdout. Exit codes: 0 done, 1 stopped (needs a human), 2 rebase conflict.
 set -u
-REPO=""; WT=""; INTERVAL=45; MAXH=12; DRY=0; ONCE=0; MODE=merge; PRS=()
+REPO=""; WT=""; INTERVAL=45; MAXH=12; DRY=0; ONCE=0; MODE=merge; EAGER=0; PRS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --repo) REPO="$2"; shift 2;;
@@ -18,6 +20,7 @@ while [ $# -gt 0 ]; do
     --max-hours) MAXH="$2"; shift 2;;
     --dry-run) DRY=1; shift;;
     --rebase) MODE=rebase; shift;;
+    --eager) EAGER=1; shift;;
     --once) ONCE=1; shift;;
     *) PRS+=("$1"); shift;;
   esac
@@ -35,7 +38,7 @@ DEFAULT=$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.na
 UP="origin/$DEFAULT"
 start=$(date +%s)
 
-info(){ gh pr view "$1" --repo "$REPO" --json state,headRefName,headRefOid,baseRefName,reviewDecision --jq '[.state,.headRefName,.headRefOid,.baseRefName,.reviewDecision]|@tsv' 2>/dev/null; }
+info(){ gh pr view "$1" --repo "$REPO" --json state,headRefName,headRefOid,baseRefName,reviewDecision,mergeStateStatus --jq '[.state,.headRefName,.headRefOid,.baseRefName,.reviewDecision,.mergeStateStatus]|@tsv' 2>/dev/null; }
 # shas this script replaced for a PR, newest first
 recorded(){ awk -v p="$1" '$1=="old" && $2==p {a[++n]=$3} END{for(i=n;i>0;i--) print a[i]}' "$STATE"; }
 # first candidate sha that is an ancestor of $1
@@ -44,12 +47,12 @@ pick(){ child="$1"; shift; for c in "$@"; do [ -n "$c" ] && git cat-file -e "${c
 say "START ${PRS[*]} on $DEFAULT in $REPO (mode=$MODE dry-run=$DRY)"
 while [ $(( $(date +%s) - start )) -lt $(( MAXH * 3600 )) ]; do
   git fetch -q origin 2>/dev/null || { sleep "$INTERVAL"; continue; }
-  OPEN=(); HEAD=(); BR=(); REV=(); mergedPR=""; mergedHead=""
+  OPEN=(); HEAD=(); BR=(); REV=(); MS=(); mergedPR=""; mergedHead=""
   for n in "${PRS[@]}"; do
     line=$(info "$n"); [ -z "$line" ] && { sleep "$INTERVAL"; continue 2; }
-    IFS=$'\t' read -r st br hd base rev <<<"$line"
+    IFS=$'\t' read -r st br hd base rev ms <<<"$line"
     case "$st" in
-      OPEN) OPEN+=("$n"); HEAD+=("$hd"); BR+=("$br"); REV+=("$rev");;
+      OPEN) OPEN+=("$n"); HEAD+=("$hd"); BR+=("$br"); REV+=("$rev"); MS+=("$ms");;
       MERGED) mergedPR="$n"; mergedHead="$hd"
               grep -q "^merged $n\$" "$STATE" || { echo "merged $n" >> "$STATE"; say "MERGED #$n"; };;
       *) say "STOP #$n is $st without merging"; exit 1;;
@@ -59,7 +62,12 @@ while [ $(( $(date +%s) - start )) -lt $(( MAXH * 3600 )) ]; do
 
   need=""
   behind=$(git rev-list --count "${HEAD[0]}..$UP")
-  [ "$behind" -gt 0 ] && need="#${OPEN[0]} is behind $DEFAULT by $behind"
+  if [ "$behind" -gt 0 ]; then
+    case "${MS[0]}" in
+      BEHIND|DIRTY) need="#${OPEN[0]} is ${MS[0]} ($behind behind $DEFAULT)";;
+      *) [ "$EAGER" = 1 ] && need="#${OPEN[0]} is behind $DEFAULT by $behind";;
+    esac
+  fi
   i=1
   while [ $i -lt ${#OPEN[@]} ]; do
     git merge-base --is-ancestor "${HEAD[$((i-1))]}" "${HEAD[$i]}" || need="${need:+$need; }#${OPEN[$i]} is not on top of #${OPEN[$((i-1))]}"
