@@ -58,13 +58,13 @@ Run it under the host's monitor (Monitor in Claude Code, max 30 minutes, re-arm 
 
 ## Always-on daemon (preferred for a long stack)
 
-Do not wait to be asked to rebase a stack that needs it. Install the stack as a launch agent so `scripts/cascade-daemon.sh` runs `autorebase.sh` forever, restarts it after a stop, pushes over HTTPS with the `gh` login (no ssh agent needed), and sends one macOS notification per distinct conflict or stop. List a PR number or, for a branch with no PR yet, its branch name, bottom first:
+Use this when the user asks for the cascade to run. Keep the plist in `~/.config/branch-cascade/`, not `~/Library/LaunchAgents/`, so it never starts at login; `launchctl bootstrap` starts it on demand and `bootout` stops it. `scripts/cascade-daemon.sh` runs `autorebase.sh` until stopped, restarts it after a stop, pushes over HTTPS with the `gh` login (no ssh agent needed), and sends one macOS notification per distinct conflict or stop. List a PR number or, for a branch with no PR yet, its branch name, bottom first:
 
 ```bash
 git worktree add --detach <dir>   # dedicated, never used by hand
-# ~/Library/LaunchAgents/local.branch-cascade.<name>.plist runs:
+# ~/.config/branch-cascade/local.branch-cascade.<name>.plist runs:
 #   bash <skill-dir>/scripts/cascade-daemon.sh --repo OWNER/NAME --worktree <dir> PR_OR_BRANCH...
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.branch-cascade.<name>.plist
+launchctl bootstrap gui/$(id -u) ~/.config/branch-cascade/local.branch-cascade.<name>.plist
 ```
 
 Logs go to `<dir>.cascade.log` and `~/Library/Logs/branch-cascade/`. Stop it with `launchctl bootout gui/$(id -u)/local.branch-cascade.<name>`. It exits by itself when every listed PR has merged. Add a newly opened PR by adding its number to the plist and re-bootstrapping. A conflict is the only case that needs an agent or a human; the daemon leaves the branches untouched and notifies.
