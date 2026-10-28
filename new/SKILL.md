@@ -11,10 +11,10 @@ Open a new Claude Code session in a directory on this machine and turn on Remote
 
 1. **Resolve the directory** from the request, relative to the current working directory (`../folder` means a sibling of cwd). `~` means the home directory.
    - If it doesn't exist, stop and say so. Don't create it unless the user asked for that.
-2. **Pick the account.** By default, use the default account (`claude`). Add `--account second` for "my other/second account", "claude2", or the optional name in `CLAUDE_LOGIN2_NAME`; add `--account other` for "the account this session isn't on". If the current session predates setup, read the exact `CLAUDE_LOGIN2_NAME` export from `~/.bashrc` or `~/.zshrc`. The second account is the switch-login profile in `CLAUDE_LOGIN2_DIR`; if it isn't set up, say so and point to `/setup-switch-login`.
+2. **Pick the account.** By default, the new chat uses the same login as this session (`--account current`, the script's default): a session on the second profile opens the new chat there too. Add `--account default` for "my main/default account" (`claude`); add `--account second` for "my other/second account", "claude2", or the optional name in `CLAUDE_LOGIN2_NAME`; add `--account other` for "the account this session isn't on". If the current session predates setup, read the exact `CLAUDE_LOGIN2_NAME` export from `~/.bashrc` or `~/.zshrc`. The second account is the switch-login profile in `CLAUDE_LOGIN2_DIR`; if it isn't set up, say so and point to `/setup-switch-login`.
 3. **Run the launcher** (it ships with this skill):
    ```
-   <skill dir>/scripts/new-chat.sh [--account default|second|other] <resolved dir>
+   <skill dir>/scripts/new-chat.sh [--account current|default|second|other] <resolved dir>
    ```
    Add `--no-rc` only if the user asks for Remote Control off.
 4. **Report** the session name, the account, the folder, the inherited permission flags, the `remote:` link, and the attach command. Tell the user the chat should now be in the Claude app. If it exited saying claude is waiting on a prompt (for example a first `/login` on the second account), relay that: the user has to answer it once at the machine, or attach to it.
