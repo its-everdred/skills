@@ -64,7 +64,12 @@ while [ $(( $(date +%s) - start )) -lt $(( MAXH * 3600 )) ]; do
   git fetch -q origin 2>/dev/null || { sleep "$INTERVAL"; continue; }
   OPEN=(); HEAD=(); BR=(); REV=(); MS=(); mergedPR=""; mergedHead=""
   for n in "${PRS[@]}"; do
-    line=$(info "$n"); [ -z "$line" ] && { sleep "$INTERVAL"; continue 2; }
+    line=$(info "$n")
+    if [ -z "$line" ]; then
+      say "cannot read #$n (check the PR number or branch name, and the network)"
+      [ "$ONCE" = 1 ] && exit 1
+      sleep "$INTERVAL"; continue 2
+    fi
     IFS='|' read -r st br hd base rev ms <<<"$line"
     case "$st" in
       OPEN) OPEN+=("$n"); HEAD+=("$hd"); BR+=("$br"); REV+=("$rev"); MS+=("$ms");;
