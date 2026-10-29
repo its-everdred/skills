@@ -113,13 +113,13 @@ while [ $(( $(date +%s) - start )) -lt $(( MAXH * 3600 )) ]; do
     B+=("$b"); i=$((i+1))
   done
 
-  NEW=(); KIND=(); PT="$UP"; PTNAME="$DEFAULT"; i=0
+  NEW=(); KIND=(); PT="$UP"; PTNAME="$DEFAULT"; i=0; stuck=0
   while [ $i -lt ${#OPEN[@]} ]; do
     git checkout -q --detach "${HEAD[$i]}" || exit 1
     if ! git rebase -q --onto "$PT" "${B[$i]}" >/tmp/autorebase.log 2>&1; then
       git rebase --abort 2>/dev/null
-      say "CONFLICT rebasing #${OPEN[$i]} onto ${PT:0:9} ($need). Nothing pushed. Resolve by hand or hand to an agent."
-      exit 2
+      say "CONFLICT rebasing #${OPEN[$i]} onto ${PT:0:9} ($need). #${OPEN[$i]} and the branches above it are left as they are. Resolve by hand or hand to an agent."
+      stuck=1; break
     fi
     tip=$(git rev-parse HEAD)
     # An approved PR keeps its approval only if its history is not rewritten, so it gets a merge commit
@@ -129,11 +129,18 @@ while [ $(( $(date +%s) - start )) -lt $(( MAXH * 3600 )) ]; do
       merge) kind=merge;;
       auto) [ "${REV[$i]}" = "APPROVED" ] && kind=merge;;
     esac
-    if [ "$kind" = merge ]; then
+    if [ "$kind" = merge ] && git merge-base --is-ancestor "$PT" "${HEAD[$i]}"; then
+      tip="${HEAD[$i]}"   # already contains its parent, so there is nothing to add
+    elif [ "$kind" = merge ]; then
       tip=$(git commit-tree "$(git rev-parse "$tip^{tree}")" -p "${HEAD[$i]}" -p "$PT" -m "Merge $PTNAME into ${BR[$i]}")
     fi
     NEW+=("$tip"); KIND+=("$kind"); PT="$tip"; PTNAME="${BR[$i]}"; i=$((i+1))
   done
+  # a conflict stops only the branch that hit it and those above it; the ones below are still published
+  if [ "$stuck" = 1 ]; then
+    [ ${#NEW[@]} -eq 0 ] && exit 2
+    OPEN=("${OPEN[@]:0:${#NEW[@]}}"); HEAD=("${HEAD[@]:0:${#NEW[@]}}"); BR=("${BR[@]:0:${#NEW[@]}}"); REV=("${REV[@]:0:${#NEW[@]}}")
+  fi
 
   args=(); refs=(); changed=0; approved=""; i=0
   while [ $i -lt ${#OPEN[@]} ]; do
@@ -148,6 +155,7 @@ while [ $(( $(date +%s) - start )) -lt $(( MAXH * 3600 )) ]; do
   if [ "$DRY" = 1 ]; then
     say "DRY-RUN ($MODE) would push [$need]:"
     i=0; while [ $i -lt ${#OPEN[@]} ]; do say "  #${OPEN[$i]} ${KIND[$i]} ${BR[$i]} ${HEAD[$i]:0:9} -> ${NEW[$i]:0:9} (diff vs $DEFAULT: $(git diff --shortstat "$UP" "${NEW[$i]}" | sed 's/^ *//'))"; i=$((i+1)); done
+    [ "$stuck" = 1 ] && exit 2
     exit 0
   fi
 
@@ -155,6 +163,7 @@ while [ $(( $(date +%s) - start )) -lt $(( MAXH * 3600 )) ]; do
     i=0; line=""
     while [ $i -lt ${#OPEN[@]} ]; do echo "old ${OPEN[$i]} ${HEAD[$i]}" >> "$STATE"; line="$line #${OPEN[$i]} ${KIND[$i]} ${NEW[$i]:0:9}"; i=$((i+1)); done
     say "UPDATED from $DEFAULT $(git rev-parse --short "$UP") [$need]:$line${approved:+ | were approved before the push:$approved}"
+    [ "$stuck" = 1 ] && exit 2
     [ "$ONCE" = 1 ] && exit 0
     sleep 60
   else
