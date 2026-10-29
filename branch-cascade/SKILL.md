@@ -69,6 +69,10 @@ launchctl bootstrap gui/$(id -u) ~/.config/branch-cascade/local.branch-cascade.<
 
 Logs go to `<dir>.cascade.log` and `~/Library/Logs/branch-cascade/`. Stop it with `launchctl bootout gui/$(id -u)/local.branch-cascade.<name>`. It exits by itself when every listed PR has merged. Add a newly opened PR by adding its number to the plist and re-bootstrapping. A conflict is the only case that needs an agent or a human; the daemon leaves the branches untouched and notifies.
 
+## If an approval gets dismissed
+
+Comment `@OptimismBot please reapprove` on the PR to get it re-approved. The user posts it, or says so; the script and the agent never comment on their own. Use it after a force-push that could not be avoided, or when an approval shows as dismissed for "The merge-base changed after approval". Prefer avoiding the dismissal first: merge commits for approved PRs, never a force-push.
+
 ## Watch and report
 
 Start a listener only when requested, and not on PRs with auto-merge set: `scripts/autorebase.sh`, or the host's background/monitor facilities for anything else. Record the stack, strategy, snapshots and lock ownership. Recheck PR states and remote changes each iteration. A closed or merged PR or a changed base pauses that chain for reassessment, not automatic retargeting. A merged parent makes the recorded old boundary stale. Stop and release owned locks on cancellation; report unresolved operations without discarding them.
