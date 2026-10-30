@@ -33,4 +33,25 @@ PY
 [ -d "$HOME/.codex" ] && add_hook "$HOME/.codex/hooks.json"
 
 "$here/sync.sh"
+
+# Load the coding principles guidance: Codex through a symlink, Claude through an @ import.
+principles="$HOME/.agents/coding-principles.md"
+if [ -d "$HOME/.codex" ]; then
+  if [ -e "$HOME/.codex/AGENTS.md" ] || [ -L "$HOME/.codex/AGENTS.md" ]; then
+    echo "skipped ~/.codex/AGENTS.md (already exists)"
+  elif [ -e "$principles" ]; then
+    ln -s "$principles" "$HOME/.codex/AGENTS.md" && echo "linked ~/.codex/AGENTS.md"
+  fi
+fi
+claude_md="$HOME/.claude/CLAUDE.md"
+import='@~/.agents/coding-principles.md'
+if [ -d "$HOME/.claude" ] && [ -e "$principles" ]; then
+  if grep -qxF "$import" "$claude_md" 2>/dev/null; then
+    echo "skipped $claude_md (import already there)"
+  else
+    [ -f "$claude_md" ] && cp "$claude_md" "$claude_md.bak"
+    printf '\n# Coding principles\n\n%s\n' "$import" >> "$claude_md"
+    echo "import added to $claude_md"
+  fi
+fi
 echo "skill sync installed"
