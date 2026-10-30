@@ -17,6 +17,14 @@ Personal [Claude Code](https://docs.claude.com/en/docs/claude-code) skills.
 
 Dependencies are the review lenses the skill leverages — **recommended, not required**. The skill is skill-agnostic and falls back to role-prompted general agents when a lens isn't installed; it also recommends installing a stronger lens set when the agent is thin. (`superpowers:writing-skills` was used to author it.)
 
+## Guidance
+
+Advice and pre-prompts that are not skills live in [`guidance/`](./guidance). Each `guidance/<name>.md` is linked to `~/.agents/<name>.md` on every sync. Claude loads it through an `@` import in `~/.claude/CLAUDE.md` and Codex through a `~/.codex/AGENTS.md` symlink.
+
+| Guidance | Description |
+|----------|-------------|
+| [`coding-principles`](./guidance/coding-principles.md) | Readability, naming, scope, reuse and review habits for any coding task, from the user's PR feedback. |
+
 ## External skills
 
 Skills from third-party plugins and marketplaces are not stored here. They are listed in [`external-skills.json`](./external-skills.json) (Claude Code marketplaces and plugins, plus Codex skill sources pinned to a commit). After a `git pull` on any machine, run:
