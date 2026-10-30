@@ -1,6 +1,6 @@
 ---
 name: skill-sync
-description: Use when the user asks to set up, run, or debug syncing of their skills repo (~/github/skills) into Claude Code, Codex and ~/.agents/skills, or says a skill added to the repo isn't showing up on this machine. Pulls the repo, links every skill into ~/.claude/skills, ~/.codex/skills and ~/.agents/skills, and installs the pinned `shared` skills from external-skills.json; a SessionStart hook does this automatically in every new chat.
+description: Use when the user asks to set up, run, or debug syncing of their skills repo (~/github/skills) into Claude Code, Codex and ~/.agents/skills, or says a skill added to the repo isn't showing up on this machine. Pulls the repo, links every skill into ~/.claude/skills, ~/.codex/skills and ~/.agents/skills, and installs the pinned `shared` skills from external-skills.json, links the repo's `guidance/*.md` files into `~/.agents`; a SessionStart hook does this automatically in every new chat.
 ---
 
 # Skill sync
@@ -13,6 +13,10 @@ Every skill in this repo is linked into `~/.claude/skills/<name>`, `~/.codex/ski
 - `scripts/sync.sh` pulls fast-forward only, and only when the checkout is a clean `main` (8-second cap via python3, so offline and macOS without `timeout` are fine). Then it links missing skills and removes links to skills deleted from the repo. It never replaces a real directory: a skill installed some other way under the same name wins.
 - `sync.sh` then runs `sync-external.sh --shared-only`: pinned third-party skills from the manifest's `shared` section are copied into `~/.agents/skills` (never overwriting a differing one) and linked into `~/.claude/skills`. Conflicts and failures are printed as `shared: ...`.
 - A skill linked during a chat is available from the next chat.
+
+## Guidance
+
+`guidance/<name>.md` holds advice and pre-prompts that are not skills. `sync.sh` links each one to `~/.agents/<name>.md` (a real file there is replaced only when identical to the repo copy; a differing one is kept and reported). `install.sh` makes Codex read `coding-principles` through a `~/.codex/AGENTS.md` symlink and Claude through an `@~/.agents/coding-principles.md` import in `~/.claude/CLAUDE.md`. To add a file, put it in `guidance/` and push; every machine links it on its next sync.
 
 ## Set up a machine (once)
 
