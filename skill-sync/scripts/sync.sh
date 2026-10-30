@@ -6,7 +6,7 @@
 # doesn't stall a new chat. Linking never replaces a real directory, only adds missing
 # links and removes links whose skill was deleted from the repo.
 #
-# Prints one line per change ("linked <name>", "unlinked <name>"); silent when nothing changed.
+# Prints one line per change ("linked <name>", "unlinked <name>", "linked guidance <name>"); silent when nothing changed.
 set -u
 
 REPO="${SKILLS_REPO:-$HOME/github/skills}"
@@ -54,6 +54,28 @@ for target in "${TARGETS[@]}"; do
     esac
   done
 done | sort -u
+
+# Guidance files (non-skill advice) are linked into ~/.agents/<name>.md. A real file is only
+# replaced when it is identical to the repo copy.
+for src in "$REPO"/guidance/*.md; do
+  [ -e "$src" ] || continue
+  name="$(basename "$src" .md)"
+  link="$HOME/.agents/$name.md"
+  [ -L "$link" ] && continue
+  if [ -e "$link" ]; then
+    cmp -s "$src" "$link" || { echo "guidance: $name differs from the repo copy, kept"; continue; }
+    rm "$link"
+  fi
+  mkdir -p "$HOME/.agents" && ln -s "$src" "$link" && echo "linked guidance $name"
+done
+
+# A guidance file removed from the repo leaves a dangling link behind; only ours are touched.
+for link in "$HOME/.agents"/*.md; do
+  [ -L "$link" ] || continue
+  case "$(readlink "$link")" in
+    "$REPO"/guidance/*) [ -e "$link" ] || { rm "$link" && echo "unlinked guidance $(basename "$link" .md)"; } ;;
+  esac
+done
 
 # Shared external skills (pinned in external-skills.json). Only changes and failures are printed.
 if [ -x "$REPO/sync-external.sh" ]; then

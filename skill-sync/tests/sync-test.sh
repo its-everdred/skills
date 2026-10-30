@@ -54,7 +54,7 @@ ok "deleted link removed"
 
 # 5. pull works with no `timeout` binary on PATH
 mkdir -p "$T/bin"
-for c in git python3 jq bash dirname basename sort grep sed ln rm mkdir readlink diff cp mktemp cat printf; do
+for c in git python3 jq bash dirname basename sort grep sed ln rm mkdir readlink diff cmp cp mktemp cat printf; do
   p="$(command -v "$c")" && ln -sf "$p" "$T/bin/$c"
 done
 CL="$T/clone"; g clone -q "$T/origin.git" "$CL"; mkdir "$CL/new"; echo n > "$CL/new/SKILL.md"
@@ -69,3 +69,47 @@ echo '{"shared":{"skills":[{"repo":"/nonexistent","ref":"abc","subpath":"skills"
 out="$(EXTERNAL_MANIFEST="$T/bad.json" "$SYNC")"
 grep -q 'shared: .*FAILED' <<<"$out" || fail "failure not reported: $out"
 ok "failure reported"
+
+# 7. guidance file is linked into ~/.agents
+echo v1 > "$HOME/.agents/skills/sec/SKILL.md"   # undo test 3 so only guidance output is left
+mkdir -p "$REPO/guidance"; echo g1 > "$REPO/guidance/pre.md"
+out="$("$SYNC")"
+grep -q 'linked guidance pre' <<<"$out" || fail "guidance not linked: $out"
+[ -L "$HOME/.agents/pre.md" ] || fail "guidance link missing"
+out="$("$SYNC")"; [ -z "$out" ] || fail "guidance second run not silent: $out"
+ok "guidance linked"
+
+# 8. an identical real file is replaced by the link
+rm "$HOME/.agents/pre.md"; cp "$REPO/guidance/pre.md" "$HOME/.agents/pre.md"
+out="$("$SYNC")"
+grep -q 'linked guidance pre' <<<"$out" || fail "identical file not replaced: $out"
+[ -L "$HOME/.agents/pre.md" ] || fail "identical file still real"
+ok "identical guidance file replaced"
+
+# 9. a differing real file is kept and reported
+rm "$HOME/.agents/pre.md"; echo mine > "$HOME/.agents/pre.md"
+out="$("$SYNC")"
+grep -q 'guidance: pre differs from the repo copy, kept' <<<"$out" || fail "differing file not reported: $out"
+[ ! -L "$HOME/.agents/pre.md" ] && [ "$(cat "$HOME/.agents/pre.md")" = mine ] || fail "differing file overwritten"
+ok "differing guidance file kept"
+
+# 10. a guidance link to a deleted file is removed
+rm "$HOME/.agents/pre.md"; ln -s "$REPO/guidance/pre.md" "$HOME/.agents/pre.md"; rm "$REPO/guidance/pre.md"
+out="$("$SYNC")"
+grep -q 'unlinked guidance pre' <<<"$out" || fail "dangling guidance link not removed: $out"
+[ ! -L "$HOME/.agents/pre.md" ] || fail "dangling guidance link still there"
+ok "deleted guidance link removed"
+
+# 11. install links Codex and imports into Claude, idempotently, never replacing a real AGENTS.md
+echo p > "$REPO/guidance/coding-principles.md"
+export HOME="$T/home2"; mkdir -p "$HOME/.claude" "$HOME/.codex"; echo mine > "$HOME/.claude/CLAUDE.md"
+"$SRC/skill-sync/scripts/install.sh" >/dev/null
+[ "$(cat "$HOME/.codex/AGENTS.md")" = p ] && [ -L "$HOME/.codex/AGENTS.md" ] || fail "codex AGENTS.md not linked"
+grep -qxF '@~/.agents/coding-principles.md' "$HOME/.claude/CLAUDE.md" || fail "claude import missing"
+[ "$(cat "$HOME/.claude/CLAUDE.md.bak")" = mine ] || fail "claude backup missing"
+"$SRC/skill-sync/scripts/install.sh" >/dev/null
+[ "$(grep -cxF '@~/.agents/coding-principles.md' "$HOME/.claude/CLAUDE.md")" = 1 ] || fail "import duplicated"
+rm "$HOME/.codex/AGENTS.md"; echo real > "$HOME/.codex/AGENTS.md"
+"$SRC/skill-sync/scripts/install.sh" >/dev/null
+[ ! -L "$HOME/.codex/AGENTS.md" ] && [ "$(cat "$HOME/.codex/AGENTS.md")" = real ] || fail "real AGENTS.md replaced"
+ok "install wires guidance"
