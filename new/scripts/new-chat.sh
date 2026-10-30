@@ -4,14 +4,14 @@
 # also opens a terminal window when a desktop display is available.
 #
 # Usage:
-#   new-chat.sh [--account default|second|other] [--resume ID] [--no-rc] DIR [-- FLAGS...]
+#   new-chat.sh [--account current|default|second|other] [--resume ID] [--no-rc] DIR [-- FLAGS...]
 #   new-chat.sh --print-flags PID
 #
 # Permission flags (--dangerously-skip-permissions, --permission-mode) are
 # inherited from the calling claude session, never added. FLAGS after `--`
 # replace the inherited ones. --account second uses the profile in
-# CLAUDE_LOGIN2_DIR (see the switch-login skill); "other" is whichever account
-# the calling session is not on. --print-flags prints PID's permission flags,
+# CLAUDE_LOGIN2_DIR (see the switch-login skill); "current" (the default) is
+# the account the calling session is on; "other" is the one it is not on. --print-flags prints PID's permission flags,
 # one per line, for callers that must read them before stopping that process.
 set -euo pipefail
 
@@ -54,7 +54,7 @@ login2_dir() {
   [ -d "$HOME/.claude-2" ] && printf '%s\n' "$HOME/.claude-2"
 }
 
-ACCOUNT=default RESUME= RC=1 DIR= EXPLICIT=0
+ACCOUNT=current RESUME= RC=1 DIR= EXPLICIT=0
 FLAGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -74,17 +74,19 @@ DIR=$(realpath -e -- "$DIR") || { echo "no such directory" >&2; exit 1; }
 command -v tmux >/dev/null || { echo "tmux is required" >&2; exit 1; }
 
 L2=$(login2_dir || true)
-if [ "$ACCOUNT" = other ]; then
-  if [ -n "${CLAUDE_CONFIG_DIR:-}" ] && [ -n "$L2" ] && [ "$(realpath -m -- "$CLAUDE_CONFIG_DIR")" = "$(realpath -m -- "$L2")" ]; then
-    ACCOUNT=default
-  else
-    ACCOUNT=second
-  fi
+# The calling session is on the second account when its CLAUDE_CONFIG_DIR is the second profile.
+ON_SECOND=0
+if [ -n "${CLAUDE_CONFIG_DIR:-}" ] && [ -n "$L2" ] && [ "$(realpath -m -- "$CLAUDE_CONFIG_DIR")" = "$(realpath -m -- "$L2")" ]; then
+  ON_SECOND=1
 fi
+case "$ACCOUNT" in
+  current) if [ "$ON_SECOND" = 1 ]; then ACCOUNT=second; else ACCOUNT=default; fi ;;
+  other) if [ "$ON_SECOND" = 1 ]; then ACCOUNT=default; else ACCOUNT=second; fi ;;
+esac
 case "$ACCOUNT" in
   default) ;;
   second) [ -n "$L2" ] && [ -d "$L2" ] || { echo "no second profile: set up switch-login first (CLAUDE_LOGIN2_DIR)" >&2; exit 1; } ;;
-  *) echo "--account must be default, second or other" >&2; exit 2 ;;
+  *) echo "--account must be current, default, second or other" >&2; exit 2 ;;
 esac
 
 [ "$EXPLICIT" = 1 ] || mapfile -t FLAGS < <(perm_flags "$PPID")
