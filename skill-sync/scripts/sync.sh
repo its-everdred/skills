@@ -55,6 +55,14 @@ for target in "${TARGETS[@]}"; do
   done
 done | sort -u
 
+# The global CLAUDE.md lives in the repo (global/CLAUDE.md): link ~/.claude/CLAUDE.md to it when it is missing or
+# already the same text; a different local file is left alone and reported.
+if [ -f "$REPO/global/CLAUDE.md" ] && [ -d "$HOME/.claude" ]; then
+  g="$HOME/.claude/CLAUDE.md"
+  if [ ! -e "$g" ] || { [ ! -L "$g" ] && cmp -s "$g" "$REPO/global/CLAUDE.md"; }; then ln -sfn "$REPO/global/CLAUDE.md" "$g" && echo "linked global CLAUDE.md"
+  elif [ ! -L "$g" ]; then echo "global CLAUDE.md: ~/.claude/CLAUDE.md differs from the repo's; left alone"; fi
+fi
+
 # Shared external skills (pinned in external-skills.json). Only changes and failures are printed.
 if [ -x "$REPO/sync-external.sh" ]; then
   out="$(with_timeout 120 "$REPO/sync-external.sh" --shared-only 2>&1)"; rc=$?

@@ -11,6 +11,7 @@ Every skill in this repo is linked into `~/.claude/skills/<name>`, `~/.codex/ski
 
 - `scripts/session-start.sh` is a SessionStart hook in both Claude Code and Codex. On every new chat it runs `scripts/sync.sh`, then passes the chat any skill changes and the open items in `~/remind.md` (see the `remind` skill).
 - `scripts/sync.sh` pulls fast-forward only, and only when the checkout is a clean `main` (8-second cap via python3, so offline and macOS without `timeout` are fine). Then it links missing skills and removes links to skills deleted from the repo. It never replaces a real directory: a skill installed some other way under the same name wins.
+- `sync.sh` links `~/.claude/CLAUDE.md` to the repo's `global/CLAUDE.md` (edit it there) when the local file is missing or identical; a different local file is reported, not replaced.
 - `sync.sh` then runs `sync-external.sh --shared-only`: pinned third-party skills from the manifest's `shared` section are copied into `~/.agents/skills` (never overwriting a differing one) and linked into `~/.claude/skills`. Conflicts and failures are printed as `shared: ...`.
 - A skill linked during a chat is available from the next chat.
 
