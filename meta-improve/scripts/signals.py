@@ -80,10 +80,14 @@ if __name__ == '__main__':
     seen = set(); users = [u for u in users if not (u[2] and u[2] in seen) and not seen.add(u[2])]   # a queued message is also logged when typed
     if o.human:   # the cheap check a timer firing runs first: did the user say anything this hour?
         bot = ('/meta-improve', 'Base directory for this skill:', 'This session is being continued')
-        fires = [i for i, (_, _, txt) in enumerate(users) if txt.startswith('/meta-improve')]
-        since = fires[-2] + 1 if len(fires) >= 2 else 0   # only what came after the previous pass (the last firing is this one)
-        n = sum(1 for _, k, txt in users[since:] if k != 'interrupt' and not txt.startswith(bot))
-        print(f'{n} message(s) from the user in the last {o.since} min'); sys.exit(0 if n else 1)
+        fire = lambda txt: txt.startswith(bot) and 'meta-improve' in txt
+        end = len(users)
+        recent = {(datetime.now() - timedelta(minutes=m)).strftime('%H:%M') for m in range(3)}
+        while end and fire(users[end - 1][2]) and users[end - 1][0] in recent: end -= 1   # this firing, if already logged (queued and typed)
+        prev = [i for i in range(end) if fire(users[i][2])]
+        since = prev[-1] + 1 if prev else 0   # only what came after the previous pass
+        n = sum(1 for _, k, txt in users[since:end] if k != 'interrupt' and not txt.startswith(bot))
+        print(f'{n} new message(s) from the user since the last pass (window {o.since} min)'); sys.exit(0 if n else 1)
     span = f"{recs[0]['_t'].astimezone():%H:%M}-{recs[-1]['_t'].astimezone():%H:%M}" if recs else 'empty'
     print(f'# Signals, last {o.since} min ({span}), {os.path.basename(path)}\n')
     print(f'## User messages ({len(users)})'); [print(f'- {t} [{k}] {s}') for t, k, s in users] or print('- none')
