@@ -51,6 +51,7 @@ def clip(s, n=500): s = ' '.join(s.split()); return s if len(s) <= n else s[:n] 
 
 if __name__ == '__main__':
     a = argparse.ArgumentParser(); a.add_argument('--since', type=int, default=60); a.add_argument('--transcript'); a.add_argument('--cwd', default=os.getcwd())
+    a.add_argument('--human', action='store_true', help='only count messages the user wrote (not timer firings or summaries); exit 1 if none')
     o = a.parse_args()
     path = o.transcript or find_transcript(o.cwd)
     if not path: sys.exit('no transcript found for ' + o.cwd)
@@ -77,6 +78,10 @@ if __name__ == '__main__':
                     if x.get('name') in ('Edit', 'Write') and inp.get('file_path'): writes[inp['file_path']] += 1
                     if x.get('name') == 'Bash' and inp.get('command'): cmds[clip(inp['command'].split('\n')[0], 90)] += 1
     seen = set(); users = [u for u in users if not (u[2] and u[2] in seen) and not seen.add(u[2])]   # a queued message is also logged when typed
+    if o.human:   # the cheap check a timer firing runs first: did the user say anything this hour?
+        bot = ('/meta-improve', 'Base directory for this skill:', 'This session is being continued')
+        n = sum(1 for _, k, txt in users if k != 'interrupt' and not txt.startswith(bot))
+        print(f'{n} message(s) from the user in the last {o.since} min'); sys.exit(0 if n else 1)
     span = f"{recs[0]['_t'].astimezone():%H:%M}-{recs[-1]['_t'].astimezone():%H:%M}" if recs else 'empty'
     print(f'# Signals, last {o.since} min ({span}), {os.path.basename(path)}\n')
     print(f'## User messages ({len(users)})'); [print(f'- {t} [{k}] {s}') for t, k, s in users] or print('- none')
