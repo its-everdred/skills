@@ -80,7 +80,9 @@ if __name__ == '__main__':
     seen = set(); users = [u for u in users if not (u[2] and u[2] in seen) and not seen.add(u[2])]   # a queued message is also logged when typed
     if o.human:   # the cheap check a timer firing runs first: did the user say anything this hour?
         bot = ('/meta-improve', 'Base directory for this skill:', 'This session is being continued')
-        n = sum(1 for _, k, txt in users if k != 'interrupt' and not txt.startswith(bot))
+        fires = [i for i, (_, _, txt) in enumerate(users) if txt.startswith('/meta-improve')]
+        since = fires[-2] + 1 if len(fires) >= 2 else 0   # only what came after the previous pass (the last firing is this one)
+        n = sum(1 for _, k, txt in users[since:] if k != 'interrupt' and not txt.startswith(bot))
         print(f'{n} message(s) from the user in the last {o.since} min'); sys.exit(0 if n else 1)
     span = f"{recs[0]['_t'].astimezone():%H:%M}-{recs[-1]['_t'].astimezone():%H:%M}" if recs else 'empty'
     print(f'# Signals, last {o.since} min ({span}), {os.path.basename(path)}\n')
