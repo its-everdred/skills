@@ -52,6 +52,12 @@
         "ref": "a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
         "subpath": "skills",
         "dest": "~/.agents/skills"
+      },
+      {
+        "repo": "https://github.com/lovisdotio/video-to-game.git",
+        "ref": "d1a24fd8a47576ec4b3c36388b30deda0631def9",
+        "subpath": "skills",
+        "dest": "~/.agents/skills"
       }
     ]
   },
