@@ -19,6 +19,10 @@ Session jobs die with the session and expire after 7 days, so recreate it; say o
 
 ## 1. Gather the hour
 
+**Timer firings check first:** run `python3 -I ~/.claude/skills/meta-improve/scripts/signals.py --since 60 --human`.
+If it exits 1 (the user sent nothing this hour), stop there: no log, no edits, no report. Only an hour with user
+messages gets a pass.
+
 ```bash
 python3 -I ~/.claude/skills/meta-improve/scripts/signals.py --since 60
 ```
@@ -81,4 +85,4 @@ Commit edits to repos you own (project skills with the project; this skills repo
 
 - **Attended** (a user message opened the turn): a short summary of the changes made.
 - **Unattended** (the timer fired): one line per persisted change; **nothing** if there were none. The log is written
-  either way. Never interrupt in-progress work beyond the pass itself: do it, then resume what you were doing.
+  whenever a pass runs (an hour without user messages has no pass, see step 1). Never interrupt in-progress work beyond the pass itself: do it, then resume what you were doing.
