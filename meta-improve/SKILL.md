@@ -19,6 +19,13 @@ with Bash `run_in_background`. It checks hourly in silence and exits only when t
 pass; its exit is the wake-up. Run the pass, then start it again. It dies with the session; say once that it is
 running. Delete any leftover meta-improve cron job (`CronList`).
 
+**Catch up when the listener died.** A context compaction or a resume kills the background shell without a wake-up.
+On first use in a session, and whenever a pass starts, look at the newest log under `docs/meta/` (or the fallback
+dir): if it is older than ~70 minutes and the user wrote in the gap (`signals.py --since <minutes since that log>`),
+the hours since it were owed. Run one pass per owed hour, in order, each from that hour's signals only, and write its
+log at the hour it covers. Never reach back before the last log or before the session started: history outside the
+window the listener should have been running is not owed, and a huge catch-up is itself a smell to log once.
+
 ## 1. Gather the hour
 
 ```bash
