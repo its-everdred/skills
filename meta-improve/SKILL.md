@@ -1,6 +1,6 @@
 ---
 name: meta-improve
-description: Use for '/meta-improve', 'meta pass', 'hourly retro', 'what did we learn', or on the hourly timer this skill sets up. Reviews the last hour of work in any repo or process for patterns (what the user pushed back on, iterated on or emphasised; hiccups; manual steps), writes an hourly log for the record, and persists each lesson where future agents will actually act on it (the skill, tool, memory or project rule that governs that step) without letting those files balloon.
+description: Use for '/meta-improve', 'meta pass', 'hourly retro', 'what did we learn', or when the hourly listener this skill starts wakes the agent. Reviews the last hour of work in any repo or process for patterns (what the user pushed back on, iterated on or emphasised; hiccups; manual steps), writes an hourly log for the record, and persists each lesson where future agents will actually act on it (the skill, tool, memory or project rule that governs that step) without letting those files balloon.
 ---
 
 # Meta-improve
@@ -13,15 +13,13 @@ An hourly look back that makes the next hour better. Two outputs, kept apart on 
 
 ## 0. Keep the listener running
 
-On first use in a session, and whenever `CronList` shows no meta-improve job, schedule one:
-`CronCreate` with cron `<m> * * * *` (any minute except 0 or 30) and prompt `/meta-improve (hourly timer)`.
-Session jobs die with the session and expire after 7 days, so recreate it; say once that it is running.
+The listener must never wake the agent in an hour the user said nothing. So no `CronCreate` timer (it fires a turn
+every hour); instead, on first use in a session, start `~/.claude/skills/meta-improve/scripts/listen.sh <repo dir>`
+with Bash `run_in_background`. It checks hourly in silence and exits only when the user has written since the last
+pass; its exit is the wake-up. Run the pass, then start it again. It dies with the session; say once that it is
+running. Delete any leftover meta-improve cron job (`CronList`).
 
 ## 1. Gather the hour
-
-**Timer firings check first:** run `python3 -I ~/.claude/skills/meta-improve/scripts/signals.py --since 60 --human`.
-If it exits 1 (the user sent nothing this hour), stop there: no log, no edits, no report. Only an hour with user
-messages gets a pass.
 
 ```bash
 python3 -I ~/.claude/skills/meta-improve/scripts/signals.py --since 60
@@ -84,5 +82,5 @@ Commit edits to repos you own (project skills with the project; this skills repo
 ## 5. Report
 
 - **Attended** (a user message opened the turn): a short summary of the changes made.
-- **Unattended** (the timer fired): one line per persisted change; **nothing** if there were none. The log is written
-  whenever a pass runs (an hour without user messages has no pass, see step 1). Never interrupt in-progress work beyond the pass itself: do it, then resume what you were doing.
+- **Unattended** (the listener woke you): one line per persisted change; **nothing** if there were none. The log is written
+  whenever a pass runs (the listener never wakes you for an hour without user messages). Never interrupt in-progress work beyond the pass itself: do it, then resume what you were doing.
