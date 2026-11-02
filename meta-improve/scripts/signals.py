@@ -67,6 +67,7 @@ if __name__ == '__main__':
                         c = x.get('content'); c = c if isinstance(c, str) else text_of(c); errors[x.get('tool_use_id', '')[:0] or 'tool'].append(clip(c.split('\n')[0], 160))
                 continue
             s = text_of(m['content']).strip()
+            if r.get('turnOrigin') in ('scheduled', 'task_notification') or r.get('promptSource') == 'system': continue  # cron prompts and task notifications are not the user
             if s and not s.startswith('<'): users.append((t, 'typed', clip(s)))
             elif '[Request interrupted' in s: users.append((t, 'interrupt', ''))
         elif r.get('type') == 'queue-operation' and r.get('operation') == 'enqueue' and r.get('content') and not str(r['content']).lstrip().startswith('<'):
