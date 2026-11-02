@@ -11,6 +11,10 @@ Open a new Claude Code session in a directory on this machine and turn on Remote
 
 1. **Resolve the directory** from the request, relative to the current working directory (`../folder` means a sibling of cwd). `~` means the home directory.
    - If it doesn't exist, stop and say so. Don't create it unless the user asked for that.
+   - When the user names the folder by its past chats ("the one I had Claude convos about X in"), find it from the
+     transcripts: `grep -h -o '"cwd":"[^"]*X[^"]*"' ~/.claude*/projects/*/*.jsonl | sort | uniq -c | sort -rn | head`
+     and open the project folder those chats ran in (the chats live under the project dir, so a sub-folder cwd still
+     means opening its project root keeps the history).
 2. **Pick the account.** By default, the new chat uses the same login as this session (`--account current`, the script's default): a session on the second profile opens the new chat there too. Add `--account default` for "my main/default account" (`claude`); add `--account second` for "my other/second account", "claude2", or the optional name in `CLAUDE_LOGIN2_NAME`; add `--account other` for "the account this session isn't on". If the current session predates setup, read the exact `CLAUDE_LOGIN2_NAME` export from `~/.bashrc` or `~/.zshrc`. The second account is the switch-login profile in `CLAUDE_LOGIN2_DIR`; if it isn't set up, say so and point to `/setup-switch-login`.
 3. **Run the launcher** (it ships with this skill):
    ```
