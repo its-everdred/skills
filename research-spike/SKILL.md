@@ -21,9 +21,9 @@ Arguments: a request in plain words, or `tickets:<list or build-order root>` to 
 
 ## 2. Build order
 
-Hand the plan to the project's build-order skill if one exists (a tracker's Build Order flow, a domain planner such as
-a new-game planner). Otherwise file the units as tickets yourself with real blocked-by dependencies, a feature or epic
-per lane, and the first playable or shippable slice prioritised. Every ticket gets a one-line outcome and owned files.
+Load `build-order` with the plan: it cuts worker-ready tickets, builds the typed graph, computes waves and the critical
+path, and files them. A tracker-specific layer (aiur: `aiur-build`) or a domain planner (for example a new-game
+planner) adds its own rules on top.
 
 ## 3. Deep-dive every ticket, in parallel
 
