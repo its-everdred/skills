@@ -10,7 +10,7 @@
 # optional line 3 is a message to start the resumed session with; switch.sh
 # writes one when the session has an active /goal, so it keeps working on it.
 _claude_login () {
-  local who=$1 runtime f id rc kick= a n skip has_rc st
+  local who=$1 runtime f id rc kick= a n skip has_rc has_name name st
   runtime=${XDG_RUNTIME_DIR:-/tmp}
   [ -d "$runtime" ] && [ -w "$runtime" ] || runtime=/tmp
   f=$(mktemp "$runtime/claude-switch.XXXXXX") || return 1
@@ -25,7 +25,7 @@ _claude_login () {
     id=$(sed -n 1p "$f"); rc=$(sed -n 2p "$f"); kick=$(sed -n 3p "$f"); rm -f "$f"
     if [ "$who" = second ]; then who=default; else who=second; fi
     # Keep the original flags, but replace any session selection with the resume.
-    n=$#; skip=0; has_rc=0
+    n=$#; skip=0; has_rc=0; has_name=0
     while [ "$n" -gt 0 ]; do
       a=$1; shift; n=$((n - 1))
       if [ "$skip" = 1 ]; then skip=0; continue; fi
@@ -33,12 +33,20 @@ _claude_login () {
         -c|--continue|--resume=*) ;;
         -r|--resume) skip=1 ;;
         --remote-control*) has_rc=1; set -- "$@" "$a" ;;
+        -n|--name|--name=*) has_name=1; set -- "$@" "$a" ;;
         *) set -- "$@" "$a" ;;
       esac
     done
+    # Keep the conversation name "<machine> - <project>" across the switch
+    # (convo-name.sh ships with the new skill).
+    name=
+    if [ "$has_name" = 0 ] && [ -x "$HOME/.claude/skills/new/scripts/convo-name.sh" ]; then
+      name=$("$HOME/.claude/skills/new/scripts/convo-name.sh" "$PWD" 2>/dev/null) || name=
+      [ -n "$name" ] && set -- "$@" --name "$name"
+    fi
     # kick is kept out of "$@" so it is sent once, not again on the next switch.
     set -- "$@" --resume "$id"
-    if [ "$rc" = rc ] && [ "$has_rc" = 0 ]; then set -- "$@" --remote-control; fi
+    if [ "$rc" = rc ] && [ "$has_rc" = 0 ]; then set -- "$@" --remote-control ${name:+"$name"}; fi
     stty sane 2>/dev/null
     printf 'switch-login: resuming on the %s account\n' "$who"
   done

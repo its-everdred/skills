@@ -21,6 +21,7 @@ Open a new Claude Code session in a directory on this machine and turn on Remote
 
 ## What the script does
 
+- Names the conversation `<machine> - <project>`, for example `PC - Aiur` or `NUC - GM`, with `scripts/convo-name.sh`. The machine is `PC` on orangekid and `NUC` on a host whose name contains "nuc", or `$CLAUDE_MACHINE_LABEL`. The project is the repository's main checkout name (a worktree names its repo): `aiur` → Aiur, `open-game-maker` → GM, `khala` → Khala, others capitalized, or `$CLAUDE_PROJECT_LABEL`. Remote Control uses the same name.
 - Starts `claude` (or `claude2`) in the folder inside a detached tmux session named `claude-<folder>-<time>`. It goes through the switch-login wrapper when that's installed, so `/switch-login` works in the new chat.
 - **Inherits permission flags** from the calling claude session: `--dangerously-skip-permissions` and `--permission-mode` are passed on only if this session has them. It never adds them.
 - Answers the folder-trust prompt, because the user named the folder. It does not answer any other startup prompt. If one blocks startup, the script exits and prints `tmux attach -t <name>`, so the user can answer it.

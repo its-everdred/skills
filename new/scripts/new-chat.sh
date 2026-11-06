@@ -90,9 +90,12 @@ case "$ACCOUNT" in
 esac
 
 [ "$EXPLICIT" = 1 ] || mapfile -t FLAGS < <(perm_flags "$PPID")
-ARGS=("${FLAGS[@]}")
+# Conversation name "<machine> - <project>" (for example "PC - Aiur"); a
+# resumed session gets the same name back.
+LABEL=$("$(dirname -- "$0")/convo-name.sh" "$DIR")
+ARGS=("${FLAGS[@]}" --name "$LABEL")
 [ -n "$RESUME" ] && ARGS+=(--resume "$RESUME")
-[ "$RC" = 1 ] && ARGS+=(--remote-control)
+[ "$RC" = 1 ] && ARGS+=(--remote-control "$LABEL")
 
 # Launch through the switch-login wrapper when it is installed, so /switch-login
 # works in this session; otherwise run claude directly.
@@ -137,6 +140,7 @@ if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v gnome-terminal >/dev/
 fi
 
 echo "session: $NAME"
+echo "name:    $LABEL"
 echo "account: $ACCOUNT"
 echo "dir:     $DIR"
 echo "flags:   ${FLAGS[*]:-(none)}"
