@@ -9,6 +9,11 @@ One paragraph: what exists when this ticket is done, as the user or a test sees 
 ## Design
 How it works. Decisions with the reason for each. Alternatives considered and why not.
 
+## Prior art
+Findings from the spike's prior-art reports and any `deep-research` run for this ticket: what others do, the guarantee
+or limit that matters here, and the report each claim comes from. "None needed" when the ticket raises no external
+question.
+
 ## Interfaces
 - Consumes: <contract, file, type> from <ticket>
 - Provides: <contract, file, type> to <tickets>
