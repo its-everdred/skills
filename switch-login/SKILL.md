@@ -16,6 +16,9 @@ Pass `rc` when the user asks for Remote Control (`/rc`) after the switch, and `n
 when they ask for it off. With no argument, the resumed session gets Remote Control
 when this one has it on, so a user on the Claude app keeps access.
 
+The resumed session keeps its conversation name, or gets `<machine> - <project>`
+(for example `PC - Aiur`) from the `new` skill's `scripts/convo-name.sh` when it had none.
+
 It restarts this session in the same pane on the other account (`claude` =
 default profile; `claude2` = the profile in `$CLAUDE_LOGIN2_DIR`; transcripts
 are shared), with the conversation resumed. Other panes are not affected. An

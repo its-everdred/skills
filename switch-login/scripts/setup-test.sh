@@ -113,11 +113,11 @@ printf '%s\n' "${CLAUDE_CONFIG_DIR:-default}" "$@" > "$T/args"
 EOF
 chmod +x "$T/bin/claude"
 export T PATH="$T/bin:$PATH" CLAUDE_LOGIN2_DIR="$P"
-export CLAUDE_LOGIN2_NAME=work
+export CLAUDE_LOGIN2_NAME=work CLAUDE_MACHINE_LABEL=PC CLAUDE_PROJECT_LABEL=Test
 bash -c 'source "$1"; claude --dangerously-skip-permissions --resume old-id -c' _ "$HERE/../claude-login.sh" >/dev/null
 check "wrapper resumes on the second profile" '[ "$(sed -n 1p "$T/args")" = "$P" ]'
 check "wrapper keeps permission flags and swaps the session" \
-  '[ "$(sed -n "2,\$p" "$T/args" | tr "\n" " ")" = "--dangerously-skip-permissions --resume sess-1 --remote-control " ]'
+  '[ "$(sed -n "2,\$p" "$T/args" | tr "\n" " ")" = "--dangerously-skip-permissions --name PC - Test --resume sess-1 --remote-control PC - Test " ]'
 check "wrapper creates the switch file in the runtime directory" \
   'case "$(cat "$T/switch-path")" in "$XDG_RUNTIME_DIR"/claude-switch.*) true ;; *) false ;; esac'
 check "wrapper removes the switch file" '[ ! -e "$(cat "$T/switch-path")" ]'
