@@ -35,6 +35,12 @@ python3 -I ~/.claude/skills/meta-improve/scripts/signals.py --since 60
 interruptions, tool errors, files edited 3+ times and repeated commands. Read it, then skim the transcript where a
 signal needs context. Also read the previous log's "to watch" list.
 
+**When this session runs agents** (an aiur Executor, background workers): also read what the agents did this hour:
+their logs, workpads, PR bodies and outputs (screenshots, clips). Look for silent degradation: stand-ins or
+placeholders shipped as real work, "could not reach / dangling / refused / skipped", workarounds recorded as
+shortcuts, Commands that failed to post. Each one is a defect: find the root cause (sandbox, skill, prompt, tool),
+file a ticket with that research and a priority, and fix it now when it is small. Treat it like user pushback.
+
 ## 2. Find the patterns
 
 Look for these, in this order. Each one is a candidate lesson.
