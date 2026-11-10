@@ -4,7 +4,7 @@
 # also opens a terminal window when a desktop display is available.
 #
 # Usage:
-#   new-chat.sh [--account current|default|second|other] [--resume ID] [--no-rc] [--pane PANE] DIR [-- FLAGS...]
+#   new-chat.sh [--account current|default|second|other] [--resume ID] [--no-rc] [--pane PANE | --session NAME] DIR [-- FLAGS...]
 #   new-chat.sh --print-flags PID
 #
 # Permission flags (--dangerously-skip-permissions, --permission-mode) are
@@ -15,6 +15,8 @@
 # one per line, for callers that must read them before stopping that process.
 # --pane PANE replaces the process in that tmux pane (respawn-pane -k) instead
 # of starting a new session, so a client attached to it stays attached.
+# --session NAME opens the chat as a new window of that tmux session (created
+# when missing) instead of a session of its own.
 set -euo pipefail
 
 usage() { sed -n '6,8p' "$0" | sed 's/^# //' >&2; exit 2; }
@@ -56,7 +58,7 @@ login2_dir() {
   [ -d "$HOME/.claude-2" ] && printf '%s\n' "$HOME/.claude-2"
 }
 
-ACCOUNT=current RESUME= RC=1 DIR= EXPLICIT=0 PANE=
+ACCOUNT=current RESUME= RC=1 DIR= EXPLICIT=0 PANE= SESSION=
 FLAGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -65,6 +67,7 @@ while [ $# -gt 0 ]; do
     --resume) RESUME=${2:?session id}; shift 2 ;;
     --no-rc) RC=0; shift ;;
     --pane) PANE=${2:?pane}; shift 2 ;;
+    --session) SESSION=${2:?session}; shift 2 ;;
     --) shift; EXPLICIT=1; FLAGS=("$@"); break ;;
     -h|--help) usage ;;
     -*) echo "unknown option: $1" >&2; usage ;;
@@ -113,17 +116,26 @@ CLEAN=(env -u CLAUDE_CONFIG_DIR -u CLAUDE_SWITCH_FILE -u CLAUDE_PID -u CLAUDECOD
 if [ -n "$PANE" ]; then
   NAME=$PANE
   LAUNCH=(tmux respawn-pane -k -t "$PANE" -c "$DIR")
+elif [ -n "$SESSION" ]; then
+  # -P prints the new pane's id, which then names the chat for the steps below.
+  WIN=$(basename -- "$DIR")
+  if tmux has-session -t "=$SESSION" 2>/dev/null; then
+    LAUNCH=(tmux new-window -d -P -F '#{pane_id}' -t "=$SESSION:" -n "$WIN" -c "$DIR")
+  else
+    LAUNCH=(tmux new-session -d -P -F '#{pane_id}' -s "$SESSION" -n "$WIN" -c "$DIR")
+  fi
 else
   LAUNCH=(tmux new-session -d -s "$NAME" -c "$DIR")
 fi
 if [ -f "$WRAPPER" ]; then
-  "${LAUNCH[@]}" "${CLEAN[@]}" CLAUDE_LOGIN2_DIR="$L2" \
-    bash -c 'source "$1"; fn=$2; shift 2; "$fn" "$@"' _ "$WRAPPER" "$FN" "${ARGS[@]}"
+  OUT=$("${LAUNCH[@]}" "${CLEAN[@]}" CLAUDE_LOGIN2_DIR="$L2" \
+    bash -c 'source "$1"; fn=$2; shift 2; "$fn" "$@"' _ "$WRAPPER" "$FN" "${ARGS[@]}")
 elif [ "$ACCOUNT" = second ]; then
-  "${LAUNCH[@]}" "${CLEAN[@]}" CLAUDE_CONFIG_DIR="$L2" claude "${ARGS[@]}"
+  OUT=$("${LAUNCH[@]}" "${CLEAN[@]}" CLAUDE_CONFIG_DIR="$L2" claude "${ARGS[@]}")
 else
-  "${LAUNCH[@]}" "${CLEAN[@]}" claude "${ARGS[@]}"
+  OUT=$("${LAUNCH[@]}" "${CLEAN[@]}" claude "${ARGS[@]}")
 fi
+[ -n "$SESSION" ] && NAME=$OUT
 
 # Wait for the session to be ready. The folder-trust prompt is answered (the
 # user named this folder); any other prompt (login, bypass warning) is left to
@@ -144,7 +156,14 @@ for _ in $(seq 1 60); do
   fi
 done
 
-if [ -z "$PANE" ] && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+# A window added to a session someone is already viewing shows up in its
+# status bar; open a terminal (on that window) only when no one is attached.
+open=1
+[ -n "$PANE" ] && open=0
+if [ -n "$SESSION" ]; then
+  if [ "$(tmux display-message -p -t "$NAME" '#{session_attached}')" = 0 ]; then tmux select-window -t "$NAME"; else open=0; fi
+fi
+if [ "$open" = 1 ] && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
   if command -v gnome-terminal >/dev/null; then
     gnome-terminal --title="$NAME" -- tmux attach -t "$NAME" >/dev/null 2>&1 || true
   elif command -v xdg-terminal-exec >/dev/null; then # Omarchy and other non-GNOME desktops
