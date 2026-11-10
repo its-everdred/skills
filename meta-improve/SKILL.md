@@ -55,6 +55,12 @@ Look for these, in this order. Each one is a candidate lesson.
 5. **Manual steps.** Anything done by hand twice that a script or tool could do. Automate it or note the script.
 6. **Carried claims.** Re-verify anything you are about to repeat from an earlier log; mark it "unverified since"
    if you can't.
+7. **Capability gaps.** When the user judged output poor ("looks added", "doesn't match"), list every skill that covers
+   that kind of work: project skills, vendored and plugin skills, and generators. Check which ones the work actually
+   loaded (the project's skill-usage scan, if it has one). If none was loaded, fix the routing. If two or more could do
+   it and nobody has compared them, queue a bake-off: the same small sample through each approach, judged by a scripted
+   check plus a side-by-side look. Record the winner per kind of work in the project's capability matrix, so the next
+   agent knows which skill to load.
 
 Drop anything that only mattered once. A lesson needs a reason it will recur.
 
