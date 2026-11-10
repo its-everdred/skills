@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Branch cascade for stacked PRs. The skill must call this instead of hand-running git.
-//   cascade.mjs rebase <bottom> <child>... [--parent-old SHA] [--base develop] [--verify CMD] [--push]
+//   cascade.mjs rebase <bottom> <child>... [--parent-old SHA] [--base develop] [--verify CMD] [--workdir DIR] [--push]
 //   cascade.mjs preflight <bottom> <child>... [--base develop]
 // A branch is a name or a PR number, listed bottom first. `rebase` rebases each child onto
 // its updated parent with `--onto <new parent> <old parent>` and never creates merge commits.
-// `--merge` is allowed only for a child with an approval on its head, where a rebase would
+// `--workdir` reuses a clean worktree that has node_modules, for `--verify`; without it a
+// temporary worktree is used. `--merge` is allowed only for a child with an approval on its head, where a rebase would
 // change its tree. `--push` publishes with an explicit lease and refuses a branch that moved.
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -29,6 +30,7 @@ function parseArgs(argv) {
     else if (arg === '--base') opts.base = argv[++i]
     else if (arg === '--parent-old') opts.parentOld = argv[++i]
     else if (arg === '--verify') opts.verify = argv[++i]
+    else if (arg === '--workdir') opts.workdir = argv[++i]
     else opts.branches.push(arg)
   }
   return opts
@@ -59,7 +61,11 @@ function approversOnHead(branch) {
   }
 }
 
-function withWorktree(fn) {
+function withWorktree(fn, workdir) {
+  if (workdir) {
+    if (git(['status', '--porcelain'], workdir) !== '') throw new Error(`--workdir ${workdir} is not clean`)
+    return fn(workdir)
+  }
   const dir = mkdtempSync(join(tmpdir(), 'cascade-'))
   git(['worktree', 'add', '-q', '--detach', dir, 'HEAD'])
   try { return fn(dir) } finally {
@@ -125,7 +131,7 @@ function cascade(opts) {
       prevOld = old[child]
       prevNew = row.head
     }
-  })
+  }, opts.workdir)
   return rows
 }
 
@@ -159,7 +165,7 @@ function preflight(opts) {
       const result = rebaseOnto(wt, squash, tip(names[0]), tip(child))
       lines.push([result.conflicts === undefined, `${child} rebased onto the squashed ${names[0]}${result.conflicts ? `, conflicts: ${result.conflicts.replaceAll('\n', ' ')}` : ''}`])
     }
-  })
+  }, opts.workdir)
   for (const [pass, text] of lines) console.log(`${pass ? 'ok  ' : 'FAIL'} ${text}`)
   return lines.every(([pass]) => pass)
 }

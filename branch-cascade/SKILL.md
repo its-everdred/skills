@@ -23,7 +23,7 @@ Rebase, never merge. This is the owner's standing rule, so do not ask. A merge c
 Branches are names or PR numbers, bottom first. Always dry-run first and show the output.
 
 - **`--parent-old`:** pass the bottom's previous tip when the bottom was rewritten, because the merge-base default would then replay its old commits. Find it in the PR's force-push event or the reflog. If it cannot be found, stop and ask.
-- **`--verify`:** pass the repo's typecheck and tests, for example `pnpm -C apps/api exec tsc --noEmit`. A failure stops the chain.
+- **`--verify` and `--workdir`:** pass the repo's typecheck, for example `--verify "cd apps/api && pnpm exec tsc --noEmit"`. It needs `node_modules`, so also pass `--workdir <clean worktree with deps>`, which the script refuses if dirty. A failure stops the chain.
 - **`--push`:** publishes each branch with an explicit lease. It stops if a branch moved on origin since the snapshot, and it never skips a branch silently.
 - **What `rebase` checks:** the child contains the old parent tip, no merge commits, fewer than 100 commits against the base, and the new tree is unchanged for a branch with an approval. It stops on any conflict and reports the files.
 - **What `preflight` checks:** merge commits, the commit count, that each child contains its parent's current tip, and a dry run of squashing the bottom onto the base and rebasing each child onto it. Do not tell the user a merge is safe until `preflight` passes.
