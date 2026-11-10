@@ -80,11 +80,20 @@ if ! command -v tmux >/dev/null || [ ! -x "$launcher" ]; then
   echo "This session was not started through the wrapper. Exit and run: $cmd --resume $id"
   exit 0
 fi
-echo "Not started through the wrapper: resuming in a new tmux session on the $other account with Remote Control, then stopping this one..."
-# Read this session's permission flags now, before the process is gone, and
-# stop it before resuming so two processes never write the same transcript.
+# Read this session's permission flags now, before the process is gone.
 mapfile -t flags < <("$launcher" --print-flags "$pid")
 [ -n "$goal" ] && flags+=("$goal")
 log_id=$(printf '%s' "$id" | tr -c 'A-Za-z0-9_-' '_')
+log="$runtime/claude-switch-$log_id.log"
+if [ -n "${TMUX_PANE:-}" ] && tmux display-message -p -t "$TMUX_PANE" '' >/dev/null 2>&1; then
+  # In tmux: resume in this same pane (respawn-pane -k stops this process first),
+  # so the attached client stays attached instead of losing its pane.
+  echo "Not started through the wrapper: resuming in this tmux pane on the $other account..."
+  setsid bash -c 'sleep 1; exec "$@"' \
+    _ "$launcher" --account "$other" --resume "$id" --pane "$TMUX_PANE" "$dir" -- "${flags[@]}" >"$log" 2>&1 &
+  exit 0
+fi
+echo "Not started through the wrapper: resuming in a new tmux session on the $other account with Remote Control, then stopping this one..."
+# Stop this session before resuming so two processes never write the same transcript.
 setsid bash -c 'sleep 1; kill -TERM "$1"; sleep 2; shift; exec "$@"' \
-  _ "$pid" "$launcher" --account "$other" --resume "$id" "$dir" -- "${flags[@]}" >"$runtime/claude-switch-$log_id.log" 2>&1 &
+  _ "$pid" "$launcher" --account "$other" --resume "$id" "$dir" -- "${flags[@]}" >"$log" 2>&1 &
