@@ -4,7 +4,7 @@
 # also opens a terminal window when a desktop display is available.
 #
 # Usage:
-#   new-chat.sh [--account current|default|second|other] [--resume ID] [--no-rc] DIR [-- FLAGS...]
+#   new-chat.sh [--account current|default|second|other] [--resume ID] [--no-rc] [--pane PANE] DIR [-- FLAGS...]
 #   new-chat.sh --print-flags PID
 #
 # Permission flags (--dangerously-skip-permissions, --permission-mode) are
@@ -13,6 +13,8 @@
 # CLAUDE_LOGIN2_DIR (see the switch-login skill); "current" (the default) is
 # the account the calling session is on; "other" is the one it is not on. --print-flags prints PID's permission flags,
 # one per line, for callers that must read them before stopping that process.
+# --pane PANE replaces the process in that tmux pane (respawn-pane -k) instead
+# of starting a new session, so a client attached to it stays attached.
 set -euo pipefail
 
 usage() { sed -n '6,8p' "$0" | sed 's/^# //' >&2; exit 2; }
@@ -54,7 +56,7 @@ login2_dir() {
   [ -d "$HOME/.claude-2" ] && printf '%s\n' "$HOME/.claude-2"
 }
 
-ACCOUNT=current RESUME= RC=1 DIR= EXPLICIT=0
+ACCOUNT=current RESUME= RC=1 DIR= EXPLICIT=0 PANE=
 FLAGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -62,6 +64,7 @@ while [ $# -gt 0 ]; do
     --account) ACCOUNT=${2:?account}; shift 2 ;;
     --resume) RESUME=${2:?session id}; shift 2 ;;
     --no-rc) RC=0; shift ;;
+    --pane) PANE=${2:?pane}; shift 2 ;;
     --) shift; EXPLICIT=1; FLAGS=("$@"); break ;;
     -h|--help) usage ;;
     -*) echo "unknown option: $1" >&2; usage ;;
@@ -107,13 +110,19 @@ NAME="claude-$(basename -- "$DIR" | tr -d '\n' | tr -c 'A-Za-z0-9_-' '-')-$(date
 # picks the account.
 CLEAN=(env -u CLAUDE_CONFIG_DIR -u CLAUDE_SWITCH_FILE -u CLAUDE_PID -u CLAUDECODE
   -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_BRIDGE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT)
+if [ -n "$PANE" ]; then
+  NAME=$PANE
+  LAUNCH=(tmux respawn-pane -k -t "$PANE" -c "$DIR")
+else
+  LAUNCH=(tmux new-session -d -s "$NAME" -c "$DIR")
+fi
 if [ -f "$WRAPPER" ]; then
-  tmux new-session -d -s "$NAME" -c "$DIR" "${CLEAN[@]}" CLAUDE_LOGIN2_DIR="$L2" \
+  "${LAUNCH[@]}" "${CLEAN[@]}" CLAUDE_LOGIN2_DIR="$L2" \
     bash -c 'source "$1"; fn=$2; shift 2; "$fn" "$@"' _ "$WRAPPER" "$FN" "${ARGS[@]}"
 elif [ "$ACCOUNT" = second ]; then
-  tmux new-session -d -s "$NAME" -c "$DIR" "${CLEAN[@]}" CLAUDE_CONFIG_DIR="$L2" claude "${ARGS[@]}"
+  "${LAUNCH[@]}" "${CLEAN[@]}" CLAUDE_CONFIG_DIR="$L2" claude "${ARGS[@]}"
 else
-  tmux new-session -d -s "$NAME" -c "$DIR" "${CLEAN[@]}" claude "${ARGS[@]}"
+  "${LAUNCH[@]}" "${CLEAN[@]}" claude "${ARGS[@]}"
 fi
 
 # Wait for the session to be ready. The folder-trust prompt is answered (the
@@ -135,8 +144,12 @@ for _ in $(seq 1 60); do
   fi
 done
 
-if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v gnome-terminal >/dev/null; then
-  gnome-terminal --title="$NAME" -- tmux attach -t "$NAME" >/dev/null 2>&1 || true
+if [ -z "$PANE" ] && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+  if command -v gnome-terminal >/dev/null; then
+    gnome-terminal --title="$NAME" -- tmux attach -t "$NAME" >/dev/null 2>&1 || true
+  elif command -v xdg-terminal-exec >/dev/null; then # Omarchy and other non-GNOME desktops
+    setsid -f xdg-terminal-exec --title="$NAME" -e tmux attach -t "$NAME" </dev/null >/dev/null 2>&1 || true
+  fi
 fi
 
 echo "session: $NAME"

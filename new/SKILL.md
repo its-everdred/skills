@@ -26,7 +26,7 @@ Open a new Claude Code session in a directory on this machine and turn on Remote
 - **Inherits permission flags** from the calling claude session: `--dangerously-skip-permissions` and `--permission-mode` are passed on only if this session has them. It never adds them.
 - Answers the folder-trust prompt, because the user named the folder. It does not answer any other startup prompt. If one blocks startup, the script exits and prints `tmux attach -t <name>`, so the user can answer it.
 - Starts claude with `--remote-control`, which is the same as typing `/rc`, and prints the session link.
-- Opens a gnome-terminal window attached to the session when a desktop display is available.
+- Opens a terminal window attached to the session when a desktop display is available (gnome-terminal, else `xdg-terminal-exec`, e.g. Alacritty on Omarchy).
 
 ## A fixed set of chats: `claudes`
 

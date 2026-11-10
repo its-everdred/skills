@@ -45,6 +45,26 @@ if [ -n "$transcript" ] && command -v jq >/dev/null; then
     goal="Resumed on the other account by /switch-login. Continue working toward the active goal."
 fi
 
+if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then other=default; else other=second; fi
+dir=$(readlink "/proc/$pid/cwd" 2>/dev/null || pwd)
+
+# This folder is trusted on this account (the session runs in it), so carry that
+# over: otherwise the resumed session stops at the folder-trust prompt, which a
+# user on the Claude app cannot answer.
+if [ "$other" = default ]; then cfg="$HOME/.claude.json"; else cfg="${CLAUDE_LOGIN2_DIR:-}/.claude.json"; fi
+# ponytail: a session already running on that account may rewrite its config at the same moment; rare, and the cost is one prompt.
+if [ -f "$cfg" ] && command -v node >/dev/null; then
+  node -e '
+    const fs = require("fs"), [cfg, dir] = process.argv.slice(1)
+    const j = JSON.parse(fs.readFileSync(cfg, "utf8"))
+    const p = (j.projects ||= {})[dir] ||= {}
+    if (p.hasTrustDialogAccepted) process.exit(0)
+    p.hasTrustDialogAccepted = true
+    fs.writeFileSync(cfg + ".switch-tmp", JSON.stringify(j, null, 2), { mode: 0o600 })
+    fs.renameSync(cfg + ".switch-tmp", cfg)
+  ' "$cfg" "$dir" || echo "switch-login: could not mark $dir trusted on the $other account" >&2
+fi
+
 if [ -n "${CLAUDE_SWITCH_FILE:-}" ]; then
   printf '%s\n%s\n%s\n' "$id" "$rc" "$goal" >"$CLAUDE_SWITCH_FILE"
   echo "Restarting on the other account${rc:+ with Remote Control}${goal:+, continuing the goal}..."
@@ -54,19 +74,26 @@ if [ -n "${CLAUDE_SWITCH_FILE:-}" ]; then
 fi
 
 # Not under the wrapper: relaunch in tmux on the other account.
-if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then other=default; else other=second; fi
 launcher="$HOME/.claude/skills/new/scripts/new-chat.sh"
-dir=$(readlink "/proc/$pid/cwd" 2>/dev/null || pwd)
 if ! command -v tmux >/dev/null || [ ! -x "$launcher" ]; then
   if [ "$other" = default ]; then cmd=claude; else cmd=claude2; fi
   echo "This session was not started through the wrapper. Exit and run: $cmd --resume $id"
   exit 0
 fi
-echo "Not started through the wrapper: resuming in a new tmux session on the $other account with Remote Control, then stopping this one..."
-# Read this session's permission flags now, before the process is gone, and
-# stop it before resuming so two processes never write the same transcript.
+# Read this session's permission flags now, before the process is gone.
 mapfile -t flags < <("$launcher" --print-flags "$pid")
 [ -n "$goal" ] && flags+=("$goal")
 log_id=$(printf '%s' "$id" | tr -c 'A-Za-z0-9_-' '_')
+log="$runtime/claude-switch-$log_id.log"
+if [ -n "${TMUX_PANE:-}" ] && tmux display-message -p -t "$TMUX_PANE" '' >/dev/null 2>&1; then
+  # In tmux: resume in this same pane (respawn-pane -k stops this process first),
+  # so the attached client stays attached instead of losing its pane.
+  echo "Not started through the wrapper: resuming in this tmux pane on the $other account..."
+  setsid bash -c 'sleep 1; exec "$@"' \
+    _ "$launcher" --account "$other" --resume "$id" --pane "$TMUX_PANE" "$dir" -- "${flags[@]}" >"$log" 2>&1 &
+  exit 0
+fi
+echo "Not started through the wrapper: resuming in a new tmux session on the $other account with Remote Control, then stopping this one..."
+# Stop this session before resuming so two processes never write the same transcript.
 setsid bash -c 'sleep 1; kill -TERM "$1"; sleep 2; shift; exec "$@"' \
-  _ "$pid" "$launcher" --account "$other" --resume "$id" "$dir" -- "${flags[@]}" >"$runtime/claude-switch-$log_id.log" 2>&1 &
+  _ "$pid" "$launcher" --account "$other" --resume "$id" "$dir" -- "${flags[@]}" >"$log" 2>&1 &
