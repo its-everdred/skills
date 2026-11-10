@@ -7,33 +7,44 @@ description: Use when upstream branch changes need propagating through stacked P
 
 Synchronize dependent branches. Updating a branch is not approval to merge its PR.
 
-## Choose before writing
+**Run `scripts/cascade.mjs` for every cascade and every pre-merge check. Do not hand-run `git rebase`, `git merge` or `git push` on a stack.** The script holds the rules below, so they do not depend on this text being remembered. Run it from any worktree of the repo, `node <skill-dir>/scripts/cascade.mjs`. Its tests are `node --test scripts/cascade.test.mjs`.
 
-Read-only inspection (fetch, `gh` reads) may run first; no branch writes, pushes or background launch until the strategy is known. Ask: **“Rebase (default) or merge for this stack?”** Recommend rebase by default, but wait for the answer. If the current request already specifies a strategy, acknowledge it instead of asking again. A default is not consent. Explain that rebase rewrites published commits and requires lease-protected pushes; merge preserves history.
+## Standing strategy
 
-Use the answer for this stack and session, and record it with the lock so a resumed or restarted watcher does not re-guess. A background agent inherits that choice, never guesses it. Existing merge history or collaborators warrant a warning, not silently switching strategies. Stop if repository rules forbid the chosen strategy.
+Rebase, never merge. This is the owner's standing rule, so do not ask. A merge cascade puts every parent's old commits into each child's history. GitHub's rebase after a squash merge then replays them and conflicts, and the PR can pass 100 commits and trip the agent-approval gate. The only exception is a child that has an approval on its head, where `--merge` keeps it. The script refuses `--merge` for any other child.
 
-## Inspect and scope
+## Commands
 
-1. Read repository instructions. Fetch named refs; confirm live PR heads, bases and states with `gh`. Show the parent-to-child order, strategy, checks and whether pushes/watch mode were requested. Ask about ambiguous dependencies.
-2. Check worktree status and active writers. Use clean isolated worktrees and one exclusive cascade lock. Leave dirty worktrees untouched; never stash, reset or delete someone else's work.
-3. Snapshot remote SHAs and the **old parent tip each child was based on** before updating anything. Verify that boundary with `git merge-base --is-ancestor <old-parent> <child>`; if the parent was force-pushed, look for the old tip in the PR's earlier head or the reflog; the latest remote parent is not automatically the old boundary. If uncertain, stop rather than replay upstream commits as child work.
+| Need | Command |
+|---|---|
+| Child branches follow an updated parent | `cascade.mjs rebase <bottom> <child>... [--parent-old SHA] [--verify CMD]` (dry run) then the same with `--push` |
+| Check before a parent merges | `cascade.mjs preflight <bottom> <child>...` |
 
-## Propagate parent first
+Branches are names or PR numbers, bottom first. Always dry-run first and show the output.
 
-Work sequentially along dependencies; independent branches may proceed separately.
+- **`--parent-old`:** pass the bottom's previous tip when the bottom was rewritten, because the merge-base default would then replay its old commits. Find it in the PR's force-push event or the reflog. If it cannot be found, stop and ask.
+- **`--verify`:** pass the repo's typecheck and tests, for example `pnpm -C apps/api exec tsc --noEmit`. A failure stops the chain.
+- **`--push`:** publishes each branch with an explicit lease. It stops if a branch moved on origin since the snapshot, and it never skips a branch silently.
+- **What `rebase` checks:** the child contains the old parent tip, no merge commits, fewer than 100 commits against the base, and the new tree is unchanged for a branch with an approval. It stops on any conflict and reports the files.
+- **What `preflight` checks:** merge commits, the commit count, that each child contains its parent's current tip, and a dry run of squashing the bottom onto the base and rebasing each child onto it. Do not tell the user a merge is safe until `preflight` passes.
 
-| Strategy | Child update | Publish after checks |
-|---|---|---|
-| Rebase (default) | `git rebase --onto <updated-parent> <old-parent> <child>` | `git push --force-with-lease=refs/heads/<child>:<snapshot-sha> origin HEAD:refs/heads/<child>` |
-| Merge | `git merge --no-edit <updated-parent>` | `git push origin HEAD:refs/heads/<child>` |
+## Rules the script cannot enforce
 
-Snapshot every old boundary before the first update. Publish each parent before its child, and use the newly published parent for the next child. Skip already synchronized branches. Never rebase or force-push protected/default branches. Warn before proceeding with merge-heavy history; preserve intentional merges with `--rebase-merges` when appropriate, otherwise stop for clarification.
+1. Read repository instructions and confirm live PR heads, bases and states with `gh` before running.
+2. Use clean isolated worktrees. Leave dirty worktrees untouched. Never stash, reset or delete someone else's work.
+3. Resolve a conflict only when intent is clear, keeping validation, authorization and error handling. Otherwise stop and report.
+4. Report each branch's old and new SHA, the check results and anything skipped. If a chain fails midway, report the pre-update and current SHA of each branch.
+5. A lease rejection means another writer moved the branch. Stop, fetch, report the new tip and wait. Never retry with a broader force.
+6. Never rebase or force-push protected or default branches.
 
-Resolve conflicts only when intent is clear, preserving validation, authorization and error handling. Run the repository's affected tests, typechecks and lint before publishing each child. If checks fail, stop that dependency chain and report the failure; never report skipped checks as passing. A lease rejection means another writer moved the branch: stop that chain, fetch, re-snapshot, report the new tip and wait for direction. Never retry with a broader force or a lease against the new tip without review. If a chain fails midway, report each branch's pre-update and current SHA.
+## Approvals and merging
+
+- Any push dismisses an approval unless the tree is unchanged. A rebase that keeps the tree keeps the approval. Do not claim otherwise without checking. The `approval-guard` hook blocks pushes that would dismiss one and passes the identical retry once after the user approves in chat.
+- For an approved stack, recommend `gh stack merge <pr>`. It merges every PR up to the chosen one in one operation, so the children are never retargeted or pushed. All PRs in it must be open, non-draft, approved and green. Do not merge a bottom PR alone when its children are approved.
+- Merged alone, the next PR is retargeted and GitHub rebases it. If that conflicts, run `cascade.mjs rebase` for the remaining PRs and say that any push may dismiss approvals.
 
 ## Watch and report
 
-Start a background listener only when requested, using the host's background/monitor facilities. Record the stack, strategy, snapshots and lock ownership. Recheck PR states and remote changes each iteration. A closed or merged PR or a changed base pauses that chain for reassessment, not automatic retargeting. A merged parent makes the recorded old boundary stale. Stop and release owned locks on cancellation; report unresolved operations without discarding them.
+Start a background listener only when requested. A closed or merged PR or a changed base pauses that chain for reassessment, and a merged parent makes the recorded old boundary stale. Report updated branches and SHAs, checks, blockers and listener status.
 
-Report updated branches/SHAs, checks, blockers and listener status. **Never approve, merge, close or retarget PRs, delete branches, or enable auto-merge without separate explicit authorization.**
+**Never approve, merge, close or retarget PRs, delete branches, or enable auto-merge without separate explicit authorization.**
