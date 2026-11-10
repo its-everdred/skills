@@ -95,3 +95,15 @@ test('preflight passes a clean stack and fails one with a merge commit', () => {
   assert.equal(dirty.status, 1)
   assert.match(dirty.stdout, /FAIL c: [1-9]\d* merge commits/)
 })
+
+test('--workdir reuses a clean worktree and refuses a dirty one', () => {
+  const { work } = makeStack()
+  const oldTip = rewriteParent(work)
+  git(work, 'checkout', '-q', '--detach', 'develop')
+  const ok = run(work, 'rebase', 'a', 'b', 'c', '--parent-old', oldTip, '--workdir', work, '--verify', 'test -f a.txt')
+  assert.equal(ok.status, 0, ok.stderr)
+  writeFileSync(join(work, 'dirty.txt'), 'x')
+  const dirty = run(work, 'rebase', 'a', 'b', 'c', '--parent-old', oldTip, '--workdir', work)
+  assert.equal(dirty.status, 1)
+  assert.match(dirty.stderr, /is not clean/)
+})
