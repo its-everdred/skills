@@ -18,6 +18,11 @@ session=claude
 [ -f "$config" ] || { echo "no config file: $config (see the header of $0)" >&2; exit 1; }
 command -v tmux >/dev/null || { echo "tmux is required" >&2; exit 1; }
 shell=${SHELL:-bash}
+# Start tmux outside the desktop's app scopes: a server forked from a terminal
+# lives in that terminal's scope, and logging out (uwsm stop) stops it with
+# every chat inside. app.slice is left alone at logout.
+scope=()
+systemctl --user show-environment >/dev/null 2>&1 && scope=(systemd-run --user --scope --quiet --collect --slice=app.slice)
 here=$(dirname -- "$(realpath -- "$0")")
 
 # A tmux server started from inside a Claude chat inherits its variables; keep
@@ -43,7 +48,7 @@ while read -r name dir cmd; do
   if tmux has-session -t "=$session" 2>/dev/null; then
     tmux new-window -d -t "=$session:" -n "$name" -c "$dir" "${clean[@]}" "$shell" -ic "$script"
   else
-    tmux new-session -d -s "$session" -n "$name" -c "$dir" "${clean[@]}" "$shell" -ic "$script"
+    "${scope[@]}" tmux new-session -d -s "$session" -n "$name" -c "$dir" "${clean[@]}" "$shell" -ic "$script"
   fi
   echo "started $name ($label) in $dir"
 done < "$config"

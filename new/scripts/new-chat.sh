@@ -111,6 +111,11 @@ NAME="claude-$(basename -- "$DIR" | tr -d '\n' | tr -c 'A-Za-z0-9_-' '-')-$(date
 # The calling session's own variables must not leak into the new one (a tmux
 # server started from here inherits them), above all CLAUDE_CONFIG_DIR, which
 # picks the account.
+# Start tmux outside the desktop's app scopes: a server forked from a terminal
+# lives in that terminal's scope, and logging out (uwsm stop) stops it with
+# every chat inside. app.slice is left alone at logout.
+scope=()
+systemctl --user show-environment >/dev/null 2>&1 && scope=(systemd-run --user --scope --quiet --collect --slice=app.slice)
 CLEAN=(env -u CLAUDE_CONFIG_DIR -u CLAUDE_SWITCH_FILE -u CLAUDE_PID -u CLAUDECODE
   -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_BRIDGE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT)
 if [ -n "$PANE" ]; then
@@ -122,10 +127,10 @@ elif [ -n "$SESSION" ]; then
   if tmux has-session -t "=$SESSION" 2>/dev/null; then
     LAUNCH=(tmux new-window -d -P -F '#{pane_id}' -t "=$SESSION:" -n "$WIN" -c "$DIR")
   else
-    LAUNCH=(tmux new-session -d -P -F '#{pane_id}' -s "$SESSION" -n "$WIN" -c "$DIR")
+    LAUNCH=("${scope[@]}" tmux new-session -d -P -F '#{pane_id}' -s "$SESSION" -n "$WIN" -c "$DIR")
   fi
 else
-  LAUNCH=(tmux new-session -d -s "$NAME" -c "$DIR")
+  LAUNCH=("${scope[@]}" tmux new-session -d -s "$NAME" -c "$DIR")
 fi
 if [ -f "$WRAPPER" ]; then
   OUT=$("${LAUNCH[@]}" "${CLEAN[@]}" CLAUDE_LOGIN2_DIR="$L2" \
