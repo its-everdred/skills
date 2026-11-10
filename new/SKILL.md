@@ -28,6 +28,10 @@ Open a new Claude Code session in a directory on this machine and turn on Remote
 - Starts claude with `--remote-control`, which is the same as typing `/rc`, and prints the session link.
 - Opens a gnome-terminal window attached to the session when a desktop display is available.
 
+## A fixed set of chats: `claudes`
+
+`scripts/claudes.sh` opens a tmux session named `claude` with one window per chat from a machine-local list, by default `~/.config/claudes/windows` (`$CLAUDES_CONFIG` or the first argument overrides it). Each line is `NAME DIR COMMAND...`, for example `web ~/code/web claude --dangerously-skip-permissions` or `docs ~/code/docs claude2`. Each window runs COMMAND in the user's interactive shell (so shell functions like `claude2` work), continuing that folder's last chat (`--continue`; a fresh chat if there is none) with the same `<machine> - <project>` name and Remote Control on. It only creates missing windows, so it is safe to re-run, and then attaches. To run it as `claudes`, link it onto PATH: `ln -s ~/.claude/skills/new/scripts/claudes.sh ~/.local/bin/claudes`. Folders never go in this repo; they live in the local list.
+
 ## Requirements
 
 `tmux`, `claude` on PATH, and Linux (`/proc`). The terminal window is optional. The second account needs the `switch-login` setup (`/setup-switch-login`).
