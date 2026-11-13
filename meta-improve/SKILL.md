@@ -41,6 +41,13 @@ placeholders shipped as real work, "could not reach / dangling / refused / skipp
 shortcuts, Commands that failed to post. Each one is a defect: find the root cause (sandbox, skill, prompt, tool),
 file a ticket with that research and a priority, and fix it now when it is small. Treat it like user pushback.
 
+**Fix the cause, not the instance.** Every recovery you or an agent did this hour (a relabel, a restart, a requeue, a
+hand-copied file) is a defect report, not a fix. In this same pass, for each one: find the root cause, then either fix it
+or hand it to whoever owns that code (file the ticket in their tracker, message their agent or session with the evidence
+and the fix you want, ask for a sha or PR), and record the owner and ticket in the log. A workaround written into a
+project rule without an owner ticket is incomplete. A workaround applied twice means last pass missed this step, so say
+so in the log.
+
 ## 2. Find the patterns
 
 Look for these, in this order. Each one is a candidate lesson.
@@ -101,5 +108,5 @@ Commit edits to repos you own (project skills with the project; this skills repo
 ## 5. Report
 
 - **Attended** (a user message opened the turn): a short summary of the changes made.
-- **Unattended** (the listener woke you): one line per persisted change; **nothing** if there were none. The log is written
+- **Unattended** (the listener woke you): one line per persisted change and per root cause handed to an owner; **nothing** if there were none. The log is written
   whenever a pass runs (the listener never wakes you for an hour without user messages). Never interrupt in-progress work beyond the pass itself: do it, then resume what you were doing.
