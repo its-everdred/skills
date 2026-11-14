@@ -60,6 +60,10 @@ Look for these, in this order. Each one is a candidate lesson.
 4. **Hiccups.** Tool errors, wrong assumptions, a wrong path taken, time lost waiting, a check done wrong (for
    example a montage sorted out of order). What one change prevents the repeat?
 5. **Manual steps.** Anything done by hand twice that a script or tool could do. Automate it or note the script.
+   **Waits come first:** list every stretch this hour where an agent or the user sat idle on someone else (a worker
+   waiting for a host step, a review, a merge; a verdict nobody relayed; a fleet idle while work was queued), with how
+   long. Remove the biggest one this pass: a loop or hook that does the step without a person, or a tool that lets the
+   waiting agent do it itself. A person in the loop only for judgment, never for routing or running a command.
 6. **Carried claims.** Re-verify anything you are about to repeat from an earlier log; mark it "unverified since"
    if you can't.
 7. **Capability gaps.** When the user judged output poor ("looks added", "doesn't match"), list every skill that covers
