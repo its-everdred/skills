@@ -58,6 +58,12 @@
         "ref": "d1a24fd8a47576ec4b3c36388b30deda0631def9",
         "subpath": "skills",
         "dest": "~/.agents/skills"
+      },
+      {
+        "repo": "https://github.com/pbakaus/impeccable.git",
+        "ref": "d41d9860b0094dcb68030657da63461212835aaa",
+        "subpath": ".agents/skills",
+        "dest": "~/.agents/skills"
       }
     ]
   },
