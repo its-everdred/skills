@@ -18,6 +18,8 @@ every hour); instead, on first use in a session, start `~/.claude/skills/meta-im
 with Bash `run_in_background`. It checks hourly in silence and exits only when the user has written since the last
 pass; its exit is the wake-up. Run the pass, then start it again. It dies with the session; say once that it is
 running. Delete any leftover meta-improve cron job (`CronList`).
+A project whose owner wants a pass every hour regardless (its CLAUDE.md says so) runs the listener with `MI_ALWAYS=1`:
+it then wakes every interval, and the pass runs on the fleet's own signals (logs, metrics) when the user was quiet.
 
 **Catch up when the listener died.** A context compaction or a resume kills the background shell without a wake-up.
 On first use in a session, and whenever a pass starts, look at the newest log under `docs/meta/` (or the fallback
