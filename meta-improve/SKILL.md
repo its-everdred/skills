@@ -40,7 +40,9 @@ signal needs context. Also read the previous log's "to watch" list.
 **When this session runs agents** (an aiur Executor, background workers): also read what the agents did this hour:
 their logs, workpads, PR bodies and outputs (screenshots, clips). Look for silent degradation: stand-ins or
 placeholders shipped as real work, "could not reach / dangling / refused / skipped", workarounds recorded as
-shortcuts, Commands that failed to post. Each one is a defect: find the root cause (sandbox, skill, prompt, tool),
+shortcuts, Commands that failed to post, and any expectation mismatch (an agent assumed a file, index, command or
+result that wasn't there, or got an answer it didn't question). Read the logs with judgment; a pattern-grep only says
+where to look. Each one is a defect: find the root cause (sandbox, skill, prompt, tool),
 file a ticket with that research and a priority, and fix it now when it is small. Treat it like user pushback.
 
 **Fix the cause, not the instance.** Every recovery you or an agent did this hour (a relabel, a restart, a requeue, a
