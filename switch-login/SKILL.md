@@ -1,10 +1,11 @@
 ---
 name: switch-login
-description: Move this Claude Code session to the other Claude account, leaving other sessions alone. Use only when the user runs /switch-login.
-disable-model-invocation: true
+description: Move this Claude Code session to the other Claude account, leaving other sessions alone. Use when the user runs /switch-login, or when the user has asked you to switch logins (now, or once a condition such as a usage threshold is met). You can run it yourself; you do not need the user to type the command.
 ---
 
 # Switch login
+
+Agents can and should run this themselves when the user asked for a switch (directly or at a condition like "at 98% usage"). Don't tell the user to type /switch-login: invoke this skill. Write any handoff the user asked for before switching.
 
 Run this and nothing else, then end your turn with one short line:
 

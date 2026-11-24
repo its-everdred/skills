@@ -58,6 +58,8 @@ if __name__ == '__main__':
     since = datetime.now(timezone.utc) - timedelta(minutes=o.since)
     recs = tail_records(path, since)
     users, errors, tools, writes, cmds = [], defaultdict(list), Counter(), Counter(), Counter()
+    scheduled = {text_of((r.get('message') or {}).get('content') or '').strip()[:80] for r in recs
+                 if r.get('type') == 'user' and (r.get('turnOrigin') in ('scheduled', 'task_notification') or r.get('promptSource') == 'system')}
     for r in recs:
         t = r['_t'].astimezone().strftime('%H:%M'); m = r.get('message') or {}
         if r.get('type') == 'user' and isinstance(m.get('content'), (str, list)):
@@ -67,9 +69,10 @@ if __name__ == '__main__':
                         c = x.get('content'); c = c if isinstance(c, str) else text_of(c); errors[x.get('tool_use_id', '')[:0] or 'tool'].append(clip(c.split('\n')[0], 160))
                 continue
             s = text_of(m['content']).strip()
+            if r.get('isMeta') or r.get('turnOrigin') in ('scheduled', 'task_notification') or r.get('promptSource') == 'system': continue  # harness notes (image size lines), cron prompts and task notifications are not the user
             if s and not s.startswith('<'): users.append((t, 'typed', clip(s)))
             elif '[Request interrupted' in s: users.append((t, 'interrupt', ''))
-        elif r.get('type') == 'queue-operation' and r.get('operation') == 'enqueue' and r.get('content') and not str(r['content']).lstrip().startswith('<'):
+        elif r.get('type') == 'queue-operation' and r.get('operation') == 'enqueue' and r.get('content') and not str(r['content']).lstrip().startswith('<') and str(r['content']).strip()[:80] not in scheduled:
             users.append((t, 'mid-turn', clip(str(r['content']))))
         elif r.get('type') == 'assistant':
             for x in m.get('content') or []:

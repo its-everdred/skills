@@ -18,6 +18,15 @@ every hour); instead, on first use in a session, start `~/.claude/skills/meta-im
 with Bash `run_in_background`. It checks hourly in silence and exits only when the user has written since the last
 pass; its exit is the wake-up. Run the pass, then start it again. It dies with the session; say once that it is
 running. Delete any leftover meta-improve cron job (`CronList`).
+A project whose owner wants a pass every hour regardless (its CLAUDE.md says so) runs the listener with `MI_ALWAYS=1`:
+it then wakes every interval, and the pass runs on the fleet's own signals (logs, metrics) when the user was quiet.
+
+**Catch up when the listener died.** A context compaction or a resume kills the background shell without a wake-up.
+On first use in a session, and whenever a pass starts, look at the newest log under `docs/meta/` (or the fallback
+dir): if it is older than ~70 minutes and the user wrote in the gap (`signals.py --since <minutes since that log>`),
+the hours since it were owed. Run one pass per owed hour, in order, each from that hour's signals only, and write its
+log at the hour it covers. Never reach back before the last log or before the session started: history outside the
+window the listener should have been running is not owed, and a huge catch-up is itself a smell to log once.
 
 ## 1. Gather the hour
 
@@ -27,6 +36,19 @@ python3 -I ~/.claude/skills/meta-improve/scripts/signals.py --since 60
 (`--transcript PATH` for another session; set `CLAUDE_CONFIG_DIR` for a second login.) It lists every user message,
 interruptions, tool errors, files edited 3+ times and repeated commands. Read it, then skim the transcript where a
 signal needs context. Also read the previous log's "to watch" list.
+
+**When this session runs agents** (an aiur Executor, background workers): also read what the agents did this hour:
+their logs, workpads, PR bodies and outputs (screenshots, clips). Look for silent degradation: stand-ins or
+placeholders shipped as real work, "could not reach / dangling / refused / skipped", workarounds recorded as
+shortcuts, Commands that failed to post. Each one is a defect: find the root cause (sandbox, skill, prompt, tool),
+file a ticket with that research and a priority, and fix it now when it is small. Treat it like user pushback.
+
+**Fix the cause, not the instance.** Every recovery you or an agent did this hour (a relabel, a restart, a requeue, a
+hand-copied file) is a defect report, not a fix. In this same pass, for each one: find the root cause, then either fix it
+or hand it to whoever owns that code (file the ticket in their tracker, message their agent or session with the evidence
+and the fix you want, ask for a sha or PR), and record the owner and ticket in the log. A workaround written into a
+project rule without an owner ticket is incomplete. A workaround applied twice means last pass missed this step, so say
+so in the log.
 
 ## 2. Find the patterns
 
@@ -40,8 +62,18 @@ Look for these, in this order. Each one is a candidate lesson.
 4. **Hiccups.** Tool errors, wrong assumptions, a wrong path taken, time lost waiting, a check done wrong (for
    example a montage sorted out of order). What one change prevents the repeat?
 5. **Manual steps.** Anything done by hand twice that a script or tool could do. Automate it or note the script.
+   **Waits come first:** list every stretch this hour where an agent or the user sat idle on someone else (a worker
+   waiting for a host step, a review, a merge; a verdict nobody relayed; a fleet idle while work was queued), with how
+   long. Remove the biggest one this pass: a loop or hook that does the step without a person, or a tool that lets the
+   waiting agent do it itself. A person in the loop only for judgment, never for routing or running a command.
 6. **Carried claims.** Re-verify anything you are about to repeat from an earlier log; mark it "unverified since"
    if you can't.
+7. **Capability gaps.** When the user judged output poor ("looks added", "doesn't match"), list every skill that covers
+   that kind of work: project skills, vendored and plugin skills, and generators. Check which ones the work actually
+   loaded (the project's skill-usage scan, if it has one). If none was loaded, fix the routing. If two or more could do
+   it and nobody has compared them, queue a bake-off: the same small sample through each approach, judged by a scripted
+   check plus a side-by-side look. Record the winner per kind of work in the project's capability matrix, so the next
+   agent knows which skill to load.
 
 Drop anything that only mattered once. A lesson needs a reason it will recur.
 
@@ -82,5 +114,5 @@ Commit edits to repos you own (project skills with the project; this skills repo
 ## 5. Report
 
 - **Attended** (a user message opened the turn): a short summary of the changes made.
-- **Unattended** (the listener woke you): one line per persisted change; **nothing** if there were none. The log is written
+- **Unattended** (the listener woke you): one line per persisted change and per root cause handed to an owner; **nothing** if there were none. The log is written
   whenever a pass runs (the listener never wakes you for an hour without user messages). Never interrupt in-progress work beyond the pass itself: do it, then resume what you were doing.
