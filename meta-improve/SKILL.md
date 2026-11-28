@@ -52,6 +52,8 @@ and the fix you want, ask for a sha or PR), and record the owner and ticket in t
 project rule without an owner ticket is incomplete. A workaround applied twice means last pass missed this step, so say
 so in the log.
 
+**Nothing carries over silently.** Read the project's own audit output in full: never filter it with grep -v, and never reduce it to a count. A finding still present from the previous pass escalates to the top. Fix it in this pass and tell the user, because a problem that survives an hour was missed, not deferred. Waiting asks, hung jobs, and one symptom across many tickets (that's your tooling, not the workers) are the usual ones.
+
 ## 2. Find the patterns
 
 Look for these, in this order. Each one is a candidate lesson.
