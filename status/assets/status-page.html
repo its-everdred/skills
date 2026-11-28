@@ -3,7 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
-/* Layout: a ledger. Sticky masthead (picker, search), then the newest report as three horizon bands: Now, Milestone, Roadmap timeline. History and search open as drawers over the same column. */
+/* Layout: a dashboard. Sticky masthead (picker, search, history), then verdict + KPI tiles, the questions form, a screenshot strip, and one-line sections that expand. */
 :root{
   --bg:#eef1f6; --surface:#ffffff; --sunk:#e4e8f0; --ink:#111a2e; --muted:#5a6479; --line:#d9dee8;
   --accent:#2d6bd6; --accent-soft:rgba(45,107,214,.12); --ok:#1d9560; --warn:#b97f0c; --bad:#cf4040;
@@ -13,59 +13,105 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b101b;--surface:#131a29;--sunk:#0f1522;--ink:#e7ecf5;--muted:#8e98ae;--line:#232d43;--accent:#79b4f4;--accent-soft:rgba(121,180,244,.14);--ok:#5fd29a;--warn:#efc062;--bad:#f28a8a;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#0b101b;--surface:#131a29;--sunk:#0f1522;--ink:#e7ecf5;--muted:#8e98ae;--line:#232d43;--accent:#79b4f4;--accent-soft:rgba(121,180,244,.14);--ok:#5fd29a;--warn:#efc062;--bad:#f28a8a;color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body)}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);margin:0}
 .col{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.mast{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding-block:12px}
+.mast{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding-block:10px}
 .proj{font:700 1.05rem/1 var(--display);letter-spacing:-.01em;margin-right:auto}
 .ctl{display:flex;gap:6px;align-items:center}
-button,select,input{font:inherit;color:inherit}
+button,select,input,textarea{font:inherit;color:inherit}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 10px;cursor:pointer;line-height:1.2}
-.btn:hover{border-color:var(--accent)} .btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn:hover{border-color:var(--accent)} :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
-select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 8px;max-width:210px}
-#q{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 10px;width:min(220px,46vw)}
-main{display:grid;gap:22px;padding-block:22px 72px}
-.band{display:grid;gap:14px}
-.eyebrow{font:500 .72rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
-.eyebrow::after{content:"";flex:1;height:1px;background:var(--line)}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;min-width:0;position:relative}
-.copy{position:absolute;top:10px;right:10px;font-size:.75rem;padding:3px 8px;opacity:.75}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+.btn:disabled{opacity:.45;cursor:default}
+select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 8px;max-width:190px}
+#q{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 10px;width:min(200px,40vw)}
+main{display:grid;gap:12px;padding-block:14px 64px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;min-width:0;position:relative}
+.copy{font-size:.72rem;padding:3px 8px;opacity:.75;float:right;margin:0 0 6px 8px}
 .copy:hover{opacity:1}
-.verdict{display:grid;gap:8px;padding:22px 22px 20px}
-.state{display:inline-flex;align-items:center;gap:8px;font:600 .8rem var(--body);text-transform:uppercase;letter-spacing:.08em}
-.state i{width:9px;height:9px;border-radius:50%;background:currentColor}
+/* top row */
+.top{display:grid;gap:10px;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr);align-items:stretch}
+.verdict{display:grid;gap:6px;align-content:start}
+.state{display:inline-flex;align-items:center;gap:7px;font:600 .74rem var(--body);text-transform:uppercase;letter-spacing:.08em;padding:3px 9px;border-radius:99px;background:color-mix(in srgb,currentColor 12%,transparent);justify-self:start}
+.state i{width:8px;height:8px;border-radius:50%;background:currentColor}
 .s-on-track{color:var(--ok)} .s-at-risk{color:var(--warn)} .s-off-track{color:var(--bad)}
-h1{font:700 clamp(1.45rem,3.4vw,2.1rem)/1.12 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance;max-width:30ch}
-.when{color:var(--muted);font-size:.88rem}
-ul.tight{margin:0;padding-left:1.1rem;display:grid;gap:5px}
-.fu{display:flex;gap:8px;align-items:baseline}
-.tag{font:500 .7rem var(--mono);padding:1px 7px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+h1{font:700 clamp(1.15rem,2.6vw,1.45rem)/1.2 var(--display);letter-spacing:-.015em;margin:0;text-wrap:balance}
+.when{color:var(--muted);font-size:.8rem}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px;align-content:start;min-width:0}
+.kpi span{font:500 .68rem/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi b{font:700 1.5rem/1.15 var(--display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi small{color:var(--muted);font-size:.78rem;line-height:1.3;overflow:hidden;text-overflow:ellipsis}
+.kpi.bad b{color:var(--bad)} .kpi.warn b{color:var(--warn)} .kpi.ok b{color:var(--ok)}
+/* questions form */
+h3{font:600 .98rem/1.2 var(--display);margin:0 0 8px}
+ol.qs{margin:0;padding-left:1.25rem;display:grid;gap:7px}
+.qt{font-size:.9rem;line-height:1.35}
+.opts{display:inline-flex;flex-wrap:wrap;gap:5px;margin-left:6px;vertical-align:1px}
+.pill{position:relative}
+.pill input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.pill span{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:1px 11px;font-weight:600;font-size:.84rem}
+.pill input:checked+span{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.pill input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.pill input:disabled+span{opacity:.6}
+textarea{width:100%;border:1px solid var(--line);background:var(--sunk);border-radius:10px;padding:7px 10px;margin-top:10px;resize:vertical;font-size:.88rem}
+.reply{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.reply code{font:500 .8rem var(--mono);background:var(--accent-soft);color:var(--accent);padding:4px 10px;border-radius:8px}
+.sent{color:var(--ok);font-weight:600;font-size:.88rem}
+/* sections */
+details.sec{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+details.sec>summary{list-style:none;cursor:pointer;display:flex;gap:10px;align-items:center;padding:11px 16px;min-width:0}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::after{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:-3px 2px 0 auto;flex:none;transition:transform .15s}
+details.sec[open]>summary::after{transform:rotate(225deg);margin-top:3px}
+summary .nm{font:600 .95rem var(--display);flex:none}
+summary .sum{color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+summary .mini{width:64px;flex:none}
+.body{padding:0 16px 14px}
+ul.tight{margin:0;padding-left:1.1rem;display:grid;gap:4px;font-size:.9rem}
+.fu{display:flex;gap:8px;align-items:baseline;font-size:.88rem}
+.tag{font:500 .68rem var(--mono);padding:1px 7px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
 .t-done,.t-live,.t-ok{color:var(--ok)} .t-open,.t-merged,.t-building,.t-review,.t-warn{color:var(--accent)} .t-dropped,.t-design,.t-planned{color:var(--muted)} .t-blocked,.t-bad{color:var(--bad)}
-ol.qs{margin:0;padding-left:1.3rem;display:grid;gap:8px}
-.opt{font-weight:600} .opt.def{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
-.reply{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
-.reply code{font:500 .95rem var(--mono);background:var(--accent-soft);color:var(--accent);padding:6px 12px;border-radius:10px}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
-h3{font:600 1rem/1.2 var(--display);margin:0 0 10px}
-.goal{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,160px) 52px;gap:4px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
-.goal:first-of-type{border-top:0;padding-top:0}
-.goal small{grid-column:1/-1;color:var(--muted);font-size:.84rem}
-.bar{height:8px;border-radius:99px;background:var(--sunk);overflow:hidden;position:relative}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,170px) 58px;gap:3px 12px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:.9rem}
+.row:first-of-type{border-top:0;padding-top:2px}
+.row small{grid-column:1/-1;color:var(--muted);font-size:.8rem;line-height:1.35}
+.bar{height:7px;border-radius:99px;background:var(--sunk);overflow:hidden;position:relative}
 .bar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--accent)}
 .bar b{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--accent);opacity:.35}
 .bar.warn i{background:var(--warn)} .bar.bad i{background:var(--bad)} .bar.ok i{background:var(--ok)}
-.num{font:500 .8rem var(--mono);color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
-.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(140px,44%),1fr));gap:12px}
-figure{margin:0;display:grid;gap:6px;min-width:0}
-figure img{width:100%;aspect-ratio:4/5;object-fit:cover;object-position:top;border-radius:10px;border:1px solid var(--line);background:var(--sunk)}
-figcaption{font-size:.82rem;line-height:1.35}
-table{width:100%;border-collapse:collapse;font-size:.88rem}
-th{font:500 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px}
-td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+.bar.none{background:repeating-linear-gradient(135deg,var(--sunk) 0 5px,transparent 5px 10px)}
+.num{font:500 .78rem var(--mono);color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.est{font-style:italic}
+/* models */
+ol.models{margin:0;padding:0;list-style:none;counter-reset:m;display:grid}
+ol.models li{counter-increment:m;display:grid;grid-template-columns:26px minmax(0,1fr) minmax(90px,170px) 58px;gap:3px 12px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:.9rem}
+ol.models li:first-child{border-top:0;padding-top:2px}
+ol.models li::before{content:counter(m);font:700 .8rem var(--mono);color:var(--accent);background:var(--accent-soft);border-radius:7px;text-align:center;padding:2px 0}
+ol.models li small{grid-column:2/-1;color:var(--muted);font-size:.8rem}
+.mono{font:500 .82rem var(--mono)}
+/* shipped strip */
+.strip{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 8px;scrollbar-width:thin}
+.shot{flex:none;scroll-snap-align:start;border:0;background:none;padding:0;cursor:zoom-in;display:grid;gap:4px;text-align:left;max-width:240px}
+.shot img{height:120px;width:auto;max-width:240px;object-fit:cover;object-position:top;border-radius:9px;border:1px solid var(--line);background:var(--sunk);display:block}
+.shot span{font-size:.74rem;line-height:1.25;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:0;min-width:100%}
+.tcard{flex:none;scroll-snap-align:start;width:150px;height:120px;border:1px solid var(--line);border-radius:9px;background:var(--sunk);padding:9px 10px;display:grid;align-content:space-between;font-size:.8rem;line-height:1.3;overflow:hidden}
+.tcard .tag{justify-self:start}
+.shot i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.d-live{background:var(--ok)} .d-merged{background:var(--accent)} .d-design{background:var(--muted)}
+dialog{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);padding:0;width:min(760px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(5,8,15,.7)}
+.lb{display:grid;grid-template-rows:minmax(0,1fr) auto;max-height:calc(100vh - 26px)}
+.lb img{width:100%;max-height:calc(100vh - 150px);object-fit:contain;background:var(--sunk);display:block}
+.lbbar{display:flex;gap:8px;align-items:center;padding:10px 12px}
+.lbbar .t{margin-right:auto;min-width:0;flex:1;font-size:.92rem}
+.lbbar .t small{display:block;color:var(--muted);font-size:.8rem}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{font:500 .7rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px}
+td{padding:7px 6px;border-top:1px solid var(--line);vertical-align:top}
 .scroll{overflow-x:auto}
-.issue b{display:block}
 /* roadmap */
 .tl{min-width:860px;display:grid;gap:6px}
 .axis{position:relative;height:22px;margin-left:120px;border-bottom:1px solid var(--line)}
@@ -84,7 +130,8 @@ td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
 .parked{display:grid;gap:6px;margin-top:12px}
 .parked div{display:flex;gap:8px;align-items:baseline;font-size:.86rem}
 /* drawers */
-.drawer{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.drawer{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px}
+.eyebrow{font:500 .7rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .hit{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;padding:8px 0;border-top:1px solid var(--line);font-size:.88rem}
 .hit:first-of-type{border-top:0}
 .hit .w{font:500 .72rem var(--mono);color:var(--muted)}
@@ -92,9 +139,14 @@ td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
 mark{background:var(--accent-soft);color:inherit;border-radius:3px;padding:0 2px}
 tr.pick{cursor:pointer} tr.pick:hover td{background:var(--accent-soft)}
 .muted{color:var(--muted)}
-.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;font-size:.85rem}
-@media (max-width:560px){.goal{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n v" "b b" "s s"}.goal>div:first-child{grid-area:n}.goal .bar{grid-area:b}.goal .num{grid-area:v}.goal small{grid-area:s}.issues tr{display:grid;gap:2px;padding:8px 0;border-top:1px solid var(--line)}.issues td{border:0;padding:0}.issues tr:first-child{display:none}.issues td:nth-child(2)::before{content:"Cause: ";color:var(--muted)}.issues td:nth-child(3)::before{content:"Fix: ";color:var(--muted)}.issues td:first-child{font-weight:600}}
-@media (prefers-reduced-motion:no-preference){.band{animation:rise .35s ease-out both}@keyframes rise{from{transform:translateY(6px)}to{transform:none}}}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;font-size:.85rem;z-index:20}
+@media (max-width:760px){.top{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){#q{width:auto;flex:1}.mast>.ctl:last-child{flex:1}select{max-width:150px}.proj{font-size:.95rem}main{gap:8px;padding-block:10px 24px}
+ .kpis{gap:8px}.kpi{padding:8px 11px}.kpi b{font-size:1.25rem}.kpi span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.verdict{padding:12px 14px}.card{padding:12px 14px}
+ .row{grid-template-columns:minmax(0,1fr) auto}.row .bar{grid-column:1/-1;grid-row:2}
+ ol.models li{grid-template-columns:26px minmax(0,1fr) auto}ol.models li .bar{grid-column:2/-1;grid-row:2}
+ .issues tr{display:grid;gap:2px;padding:8px 0;border-top:1px solid var(--line)}.issues td{border:0;padding:0}.issues tr:first-child{display:none}.issues td:nth-child(2)::before{content:"Cause: ";color:var(--muted)}.issues td:nth-child(3)::before{content:"Fix: ";color:var(--muted)}.issues td:first-child{font-weight:600}
+ summary .mini{display:none}}
 </style>
 
 <header><div class="col mast">
@@ -104,12 +156,6 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--accent-soft)}
     <select id="pick" aria-label="Report"></select>
     <button class="btn" id="next" aria-label="Newer report">›</button>
   </div>
-  <div class="ctl" role="group" aria-label="Horizon">
-    <button class="btn hz" data-h="all" aria-pressed="true">All</button>
-    <button class="btn hz" data-h="short">Now</button>
-    <button class="btn hz" data-h="medium">Milestone</button>
-    <button class="btn hz" data-h="long">Roadmap</button>
-  </div>
   <div class="ctl">
     <input id="q" type="search" placeholder="Search every report" aria-label="Search every report">
     <button class="btn" id="hist" aria-pressed="false">History</button>
@@ -117,17 +163,28 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--accent-soft)}
 </div></header>
 
 <main class="col" id="main"></main>
+<dialog id="lb" aria-label="Screenshot"><div class="lb"><img id="lbimg" alt=""><div class="lbbar"><div class="t" id="lbt"></div><button class="btn" id="lbp" aria-label="Previous">‹</button><button class="btn" id="lbn" aria-label="Next">›</button><button class="btn" id="lbx" aria-label="Close">✕</button></div></div></dialog>
 <div class="toast" id="toast" hidden></div>
 
 <script type="application/json" id="seed">{"project":"Status","reports":[]}</script>
 <script>
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let D, idx=0, hz='all', showHist=false;
+let D, idx=0, showHist=false, db=null, canWrite=null, saved={}, open=new Set(innerWidth>560?['shipped']:[]);
 const fmt=(iso,o={month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})=>{try{return new Date(iso).toLocaleString(undefined,o)}catch{return iso}};
 const day=iso=>fmt(iso,{weekday:'short',month:'short',day:'numeric'});
+const wk=t=>fmt(t,{weekday:'short',hour:'numeric',minute:'2-digit'});
 const slug=id=>'r-'+String(id).replace(/[^0-9A-Za-z]/g,'').toLowerCase();
 function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,1600)}
 async function copy(text){try{await navigator.clipboard.writeText(text);toast('Copied')}catch{const ta=document.createElement('textarea');ta.value=text;document.body.append(ta);ta.select();try{document.execCommand('copy');toast('Copied')}catch{toast('Select and copy')}ta.remove()}}
+
+/* run-out forecast: burn = used % ÷ elapsed share of the window, measured when the figure was read */
+function fc(b,r){if(b.used==null||!b.resets||!b.windowHours||!(b.used>0))return null;
+ const at=+new Date(b.observed||r.id),end=+new Date(b.resets),span=b.windowHours*36e5,el=(at-(end-span))/span;
+ if(!(el>0))return null;const out=at+(100-b.used)/(b.used/el)*span;return{out,risk:out<end}}
+function fcText(b,r){const f=fc(b,r);if(!f)return b.forecast||'';return (f.risk?`Out ~${wk(f.out)}, before the reset`:'Lasts to the reset at this pace')+' (estimate)'+(f.risk&&b.bridge?`. Bridge: ${b.bridge}`:'')}
+const bstate=(b,r)=>b.used==null?'':b.state||(fc(b,r)?.risk?'bad':b.used>=70?'warn':'ok');
+const atRisk=r=>(r.medium?.budgets||[]).map(b=>({b,f:fc(b,r)})).filter(x=>x.f?.risk||x.b.state==='bad').sort((a,c)=>(a.f?.out??9e15)-(c.f?.out??9e15));
+const goalSum=r=>(r.medium?.goals||[]).reduce((a,g)=>(a.d+=g.done||0,a.t+=g.total||0,a.p+=g.prev??g.done??0,a),{d:0,t:0,p:0});
 
 /* markdown for each section, used by copy buttons and search */
 function md(r,sec){const m=r.medium||{},L=r.long||{},h=`(${day(r.id)})`;switch(sec){
@@ -136,65 +193,99 @@ function md(r,sec){const m=r.medium||{},L=r.long||{},h=`(${day(r.id)})`;switch(s
  case 'goals':return `## ${m.milestone?.name||'Milestone'} ${h}\n${(m.goals||[]).map(g=>`- ${g.name}: ${g.done}/${g.total}${g.note?' (' + g.note + ')':''}`).join('\n')}`;
  case 'shipped':return `## Shipped ${h}\n${(m.shipped||[]).map(s=>`- ${s.title} (${s.state})`).join('\n')}`;
  case 'inflight':return `## In flight ${h}\n${(m.inflight||[]).map(s=>`- ${s.title}: ${s.stage}${s.eta?', '+s.eta:''}`).join('\n')}`;
- case 'budgets':return `## Budgets ${h}\n${(m.budgets||[]).map(b=>`- ${b.name}: ${b.used}% used, resets ${fmt(b.resets)}. ${b.forecast||''}`).join('\n')}`;
+ case 'budgets':return `## Budgets ${h}\n${(m.budgets||[]).map(b=>`- ${b.name}: ${b.used==null?'no meter':b.used+'% used'}${b.resets?', resets '+fmt(b.resets):''}. ${fcText(b,r)}${b.detail?' '+b.detail:''}`).join('\n')}`;
+ case 'models':return `## Models ${h}\n${(m.models||[]).map((x,i)=>`${i+1}. ${x.backend}${x.account?'/'+x.account:''}: ${x.model||''}${x.effort?' · '+x.effort:''}`).join('\n')}`;
  case 'issues':return `## Issues ${h}\n${(m.issues||[]).map(x=>`- ${x.symptom} — cause: ${x.cause} — fix: ${x.fix}`).join('\n')}`;
  case 'roadmap':return `## Roadmap ${h}\n${(L.items||[]).map(x=>`- [${x.lane}] ${x.title} (${x.priority}, ${x.start}→${x.end})${x.note?': '+x.note:''}`).join('\n')}`;}}
-const reply=r=>(r.questions||[]).map((q,i)=>`${i+1} ${q.default??q.options[0]}`).join(' ');
-const cp=(sec)=>`<button class="btn copy" data-copy="${sec}" aria-label="Copy as text">Copy</button>`;
+const SECS=['short','questions','goals','shipped','inflight','budgets','models','issues','roadmap'];
+const live=r=>r===D.reports[idx]&&$('#qf')?.dataset.rid===r.id;
+const picked=r=>{const a=saved[r.id]?.answers;return (r.questions||[]).map((q,i)=>{const el=live(r)&&document.querySelector(`input[name="q${i+1}"]:checked`);return el?el.value:a?.[i+1]??q.default??q.options[0]})};
+const reply=r=>picked(r).map((v,i)=>`${i+1} ${v}`).join(' ');
+const cp=sec=>`<button class="btn copy" data-copy="${sec}" aria-label="Copy as text">Copy</button>`;
+const sec=(id,name,sum,body,extra='')=>`<details class="sec" data-sec="${id}"${open.has(id)?' open':''}><summary><span class="nm">${name}</span>${extra}<span class="sum">${sum}</span></summary><div class="body">${cp(id)}${body}</div></details>`;
+const bar=(pct,c='',prevPct=null)=>`<div class="bar ${c}">${prevPct!=null?`<b style="width:${pct}%"></b><i style="width:${prevPct}%"></i>`:`<i style="width:${Math.min(100,pct)}%"></i>`}</div>`;
+function countdown(due){const ms=new Date(due)-Date.now();if(ms<=0)return 'Due';const h=Math.floor(ms/36e5),d=Math.floor(h/24);return d?`${d}d ${h%24}h`:`${h}h ${Math.floor(ms%36e5/6e4)}m`}
 
 function render(){const r=D.reports[idx]; if(!r){$('#main').innerHTML='<div class="card">No reports yet.</div>';return}
- const m=r.medium||{},L=r.long||{},prev=D.reports[idx-1];
+ const m=r.medium||{},L=r.long||{},st=r.verdict?.state||'on-track',g=goalSum(r),risk=atRisk(r),qs=r.questions||[],ans=saved[r.id];
  document.title=(D.project||'Status')+' · '+day(r.id); $('#proj').textContent=D.project||'Status';
- const st=r.verdict?.state||'on-track';
  let h='';
- if(showHist){h+=`<section class="drawer"><div class="eyebrow">History</div><div class="scroll"><table><tr><th>Report</th><th>State</th><th>Headline</th><th>Goals</th><th>Asks</th></tr>${D.reports.map((x,i)=>({x,i})).reverse().map(({x,i})=>{const g=x.medium?.goals||[],d=g.reduce((a,b)=>a+(b.done||0),0),t=g.reduce((a,b)=>a+(b.total||0),0);return `<tr class="pick" data-i="${i}"><td class="num" style="text-align:left">${esc(fmt(x.id))}</td><td><span class="state s-${esc(x.verdict?.state)}"><i></i></span></td><td>${esc(x.verdict?.headline)}</td><td class="num">${t?d+'/'+t:'—'}</td><td class="num">${(x.questions||[]).length||''}</td></tr>`}).join('')}</table></div></section>`}
+ if(showHist){h+=`<section class="drawer"><div class="eyebrow">History</div><div class="scroll"><table><tr><th>Report</th><th>State</th><th>Headline</th><th>Goals</th><th>Asks</th></tr>${D.reports.map((x,i)=>({x,i})).reverse().map(({x,i})=>{const s=goalSum(x);return `<tr class="pick" data-i="${i}"><td class="num" style="text-align:left">${esc(fmt(x.id))}</td><td><span class="state s-${esc(x.verdict?.state)}"><i></i></span></td><td>${esc(x.verdict?.headline)}</td><td class="num">${s.t?s.d+'/'+s.t:'—'}</td><td class="num">${(x.questions||[]).length||''}</td></tr>`}).join('')}</table></div></section>`}
  const q=$('#q').value.trim(); if(q.length>1)h+=searchHTML(q);
- if(hz==='all'||hz==='short'){
-  h+=`<section class="band" id="now"><div class="eyebrow">Now · since ${esc(fmt(r.window?.from))}</div>
-  <div class="card verdict">${cp('short')}<span class="state s-${esc(st)}"><i></i>${esc(st.replace('-',' '))}</span><h1>${esc(r.verdict?.headline)}</h1><div class="when">${esc(fmt(r.id,{weekday:'long',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))}${m.milestone?.due?` · ${esc(m.milestone.name)} in ${Math.max(0,Math.round((new Date(m.milestone.due)-new Date(r.id))/36e5))} h`:''}</div>
-  ${(r.short?.changes||[]).length?`<ul class="tight">${r.short.changes.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>`:''}
-  ${(r.short?.followups||[]).length?`<div style="display:grid;gap:4px;margin-top:6px"><div class="muted" style="font-size:.82rem">From the last report</div>${r.short.followups.map(f=>`<div class="fu"><span class="tag t-${esc(f.outcome)}">${esc(f.outcome)}</span><span>${esc(f.item)}${f.note?` <span class="muted">· ${esc(f.note)}</span>`:''}</span></div>`).join('')}</div>`:''}</div>
-  ${(r.questions||[]).length?`<div class="card">${cp('questions')}<h3>Answer these</h3><ol class="qs">${r.questions.map(x=>`<li>${esc(x.q)} ${x.options.map(o=>`<span class="opt${o===x.default?' def':''}">${esc(o)}</span>`).join(' / ')}${x.ifUnanswered?` <span class="muted">· ${esc(x.ifUnanswered)}</span>`:''}</li>`).join('')}</ol><div class="reply"><code>${esc(reply(r))}</code><button class="btn" data-text="${esc(reply(r))}">Copy reply</button></div></div>`:''}</section>`}
- if(hz==='all'||hz==='medium'){
-  const pg=g=>{const pct=g.total?g.done/g.total*100:0,pp=g.total&&g.prev!=null?g.prev/g.total*100:null,c=pct>=99?'ok':pct<34?'bad':pct<60?'warn':'';return `<div class="goal"><div>${esc(g.name)}</div><div class="bar ${c}">${pp!=null?`<b style="width:${pct}%"></b><i style="width:${pp}%"></i>`:`<i style="width:${pct}%"></i>`}</div><div class="num">${g.total?`${g.prev!=null&&g.prev!==g.done?g.prev+'→':''}${g.done}/${g.total}`:'—'}</div>${g.note?`<small>${esc(g.note)}</small>`:''}</div>`};
-  h+=`<section class="band" id="milestone"><div class="eyebrow">${esc(m.milestone?.name||'Milestone')}${m.milestone?.due?' · due '+esc(fmt(m.milestone.due)):''}</div>
-  ${(m.goals||[]).length?`<div class="card">${cp('goals')}<h3>Must-haves</h3>${m.goals.map(pg).join('')}</div>`:''}
-  ${(m.shipped||[]).length?`<div class="card">${cp('shipped')}<h3>Shipped</h3><div class="shots">${m.shipped.filter(s=>s.image).map(s=>`<figure><img loading="lazy" src="${esc(s.image)}" alt="${esc(s.title)}"><figcaption>${esc(s.title)} <span class="tag t-${esc(s.state)}">${esc(s.state)}</span></figcaption></figure>`).join('')}</div>${m.shipped.some(s=>!s.image)?`<ul class="tight" style="margin-top:12px">${m.shipped.filter(s=>!s.image).map(s=>`<li>${esc(s.title)} <span class="tag t-${esc(s.state)}">${esc(s.state)}</span></li>`).join('')}</ul>`:''}</div>`:''}
-  <div class="grid2">
-  ${(m.inflight||[]).length?`<div class="card">${cp('inflight')}<h3>In flight</h3><ul class="tight">${m.inflight.map(s=>`<li>${esc(s.title)} <span class="tag t-${esc(s.stage)}">${esc(s.stage)}</span>${s.eta?` <span class="muted">${esc(s.eta)}</span>`:''}</li>`).join('')}</ul></div>`:''}
-  ${(m.budgets||[]).length?`<div class="card">${cp('budgets')}<h3>Budgets</h3>${m.budgets.map(b=>`<div class="goal"><div>${esc(b.name)}</div><div class="bar ${esc(b.state)}"><i style="width:${Math.min(100,b.used)}%"></i></div><div class="num">${b.used}%</div><small>${b.resets?'Resets '+esc(fmt(b.resets))+'. ':''}${esc(b.forecast)}</small></div>`).join('')}</div>`:''}
-  </div>
-  ${(m.issues||[]).length?`<div class="card">${cp('issues')}<h3>Issues and fixes</h3><div class="scroll"><table class="issues"><tr><th>What happened</th><th>Cause</th><th>Fix</th></tr>${m.issues.map(x=>`<tr><td>${esc(x.symptom)}</td><td>${esc(x.cause)}</td><td>${esc(x.fix)}</td></tr>`).join('')}</table></div></div>`:''}</section>`}
- if((hz==='all'||hz==='long')&&(L.items||[]).length){
-  L.items.forEach(i=>{i._end=new Date(Math.max(+new Date(i.end)+864e5,+new Date(i.start)+5*864e5))});const ds=L.items.flatMap(x=>[new Date(x.start),x._end]).concat([new Date(r.id)]),t0=Math.min(...ds),t1=Math.max(...ds)+864e5,span=t1-t0,x=d=>((new Date(d)-t0)/span*100);
-  const ticks=[];for(let t=new Date(t0);t<=t1;t=new Date(+t+7*864e5))ticks.push(t);
-  const lanes=L.lanes||[...new Set(L.items.map(i=>i.lane))];
-  const age=d=>d?Math.round((new Date(r.id)-new Date(d))/864e5):null;
-  h+=`<section class="band" id="roadmap"><div class="eyebrow">Roadmap</div><div class="card">${cp('roadmap')}<h3>Timeline</h3><div class="scroll"><div class="tl">
-  <div class="axis">${ticks.map(t=>`<span style="left:${x(t)}%">${esc(fmt(t,{month:'short',day:'numeric'}))}</span>`).join('')}</div>
-  ${lanes.map(ln=>{const its=L.items.filter(i=>i.lane===ln),rows=[];its.forEach(i=>{let k=rows.findIndex(e=>e<new Date(i.start));if(k<0){k=rows.length;rows.push(0)}rows[k]=i._end;i._row=k});return `<div class="lane"><div>${esc(ln)}</div><div class="track" style="height:${Math.max(1,rows.length)*32+4}px"><div class="today" style="left:${x(r.id)}%"></div>${its.map(i=>`<div class="item p-${esc(i.priority)} s-${esc(i.state)}" style="left:${x(i.start)}%;width:${x(i._end)-x(i.start)}%;top:${i._row*32+4}px" title="${esc(i.title+(i.note?' — '+i.note:''))}">${esc(i.title)}</div>`).join('')}</div></div>`}).join('')}
-  </div></div><div class="legend"><span>Now / next</span><span class="l2">Later</span><span class="l3">Parked</span></div>
-  ${L.items.some(i=>i.priority==='parked'||i.priority==='later')?`<div class="parked"><div class="muted" style="font-size:.82rem">Waiting. Pull one forward?</div>${L.items.filter(i=>i.priority==='parked'||i.priority==='later').map(i=>`<div><span class="tag t-planned">${esc(i.priority)}</span><span>${esc(i.title)}${i.note?` <span class="muted">· ${esc(i.note)}</span>`:''}${age(i.touched)>14?` <span class="tag t-warn">${age(i.touched)} days untouched</span>`:''}</span></div>`).join('')}</div>`:''}</div></section>`}
+ /* top row: verdict + KPI tiles */
+ h+=`<section class="top"><div class="card verdict"><span class="state s-${esc(st)}"><i></i>${esc(st.replace('-',' '))}</span><h1>${esc(r.verdict?.headline)}</h1><div class="when">${esc(fmt(r.id,{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))}${r.window?.from?' · since '+esc(fmt(r.window.from)):''}</div></div>
+ <div class="kpis">
+  ${m.milestone?.due?`<div class="kpi"><span>${esc(m.milestone.name)}</span><b>${countdown(m.milestone.due)}</b><small>${esc(day(m.milestone.due))}</small></div>`:''}
+  ${g.t?`<div class="kpi"><span>Goals</span><b>${g.d}/${g.t}</b><small>${g.p!==g.d?`${g.d-g.p>0?'+':''}${g.d-g.p} since last`:'no change'}</small></div>`:''}
+  <div class="kpi ${qs.length&&!ans?'warn':''}"><span>Questions</span><b>${ans?'0':qs.length}</b><small>${ans?'Sent '+esc(wk(ans.at)):qs.length?'open':'none'}</small></div>
+  ${(m.budgets||[]).length?`<div class="kpi ${risk.length?'bad':'ok'}"><span>Budget at risk</span><b>${risk.length?esc(risk[0].b.name.split(/[,(]/)[0].trim()):'None'}</b><small>${risk.length?(risk[0].f?'out ~'+esc(wk(risk[0].f.out))+' (est.)':esc(risk[0].b.forecast||'')):'all last to reset'}${risk.length>1?` · +${risk.length-1} more`:''}</small></div>`:''}
+ </div></section>`;
+ /* questions as a form */
+ if(qs.length){const p=picked(r),note=live(r)?$('#qf').notes.value:ans?.notes||'';
+  h+=`<form class="card" id="qf" data-rid="${esc(r.id)}">${cp('questions')}<h3>Answer these</h3><ol class="qs">${qs.map((x,i)=>{const v=p[i];return `<li><span class="qt">${esc(x.q)}${x.ifUnanswered?` <span class="muted">· ${esc(x.ifUnanswered)}</span>`:''}</span><span class="opts" role="radiogroup" aria-label="Question ${i+1}">${x.options.map(o=>`<label class="pill"><input type="radio" name="q${i+1}" value="${esc(o)}"${o===x.default?' title="Default"':''}${o===v?' checked':''}><span>${esc(o)}</span></label>`).join('')}</span></li>`}).join('')}</ol>
+  <textarea name="notes" rows="1" placeholder="Note (optional)" aria-label="Note">${esc(note)}</textarea>
+  <div class="reply">${db&&canWrite!==false?`<button type="submit" class="btn primary">${ans?'Update answers':'Send answers'}</button>`:''}${ans?`<span class="sent">Sent ${esc(wk(ans.at))}</span>`:''}<code id="rl">${esc(reply(r))}</code><button type="button" class="btn" id="cprl">Copy reply</button></div></form>`}
+ /* shipped screenshots strip */
+ const shots=(m.shipped||[]).filter(s=>s.image),text=(m.shipped||[]).filter(s=>!s.image),nLive=(m.shipped||[]).filter(s=>s.state==='live').length;
+ if((m.shipped||[]).length)h+=sec('shipped','Shipped',`${m.shipped.length} · ${nLive} live`,`${shots.length||text.length?`<div class="strip">${shots.map((s,i)=>`<button class="shot" data-shot="${i}" aria-label="${esc(s.title)}"><img loading="lazy" src="${esc(s.image)}" alt=""><span><i class="d-${esc(s.state)}"></i>${esc(s.title)}</span></button>`).join('')}${text.map(s=>`<div class="tcard"><span>${esc(s.title)}</span><span class="tag t-${esc(s.state)}">${esc(s.state)}</span></div>`).join('')}</div>`:''}`);
+ if((r.short?.changes||[]).length||(r.short?.followups||[]).length){const fo=r.short?.followups||[];
+  h+=sec('short','Changes',`${(r.short?.changes||[]).length} new${fo.length?` · ${fo.filter(f=>f.outcome==='done').length}/${fo.length} follow-ups done`:''}`,`${(r.short?.changes||[]).length?`<ul class="tight">${r.short.changes.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>`:''}${fo.length?`<div style="display:grid;gap:4px;margin-top:10px"><div class="muted" style="font-size:.8rem">From the last report</div>${fo.map(f=>`<div class="fu"><span class="tag t-${esc(f.outcome)}">${esc(f.outcome)}</span><span>${esc(f.item)}${f.note?` <span class="muted">· ${esc(f.note)}</span>`:''}</span></div>`).join('')}</div>`:''}`)}
+ if((m.goals||[]).length){const pg=x=>{const pct=x.total?x.done/x.total*100:0,pp=x.total&&x.prev!=null?x.prev/x.total*100:null,c=pct>=99?'ok':pct<34?'bad':pct<60?'warn':'';return `<div class="row"><div>${esc(x.name)}</div>${bar(pct,c,pp)}<div class="num">${x.total?`${x.prev!=null&&x.prev!==x.done?x.prev+'→':''}${x.done}/${x.total}`:'—'}</div>${x.note?`<small>${esc(x.note)}</small>`:''}</div>`};
+  h+=sec('goals','Goals',`${g.d}/${g.t} parts · ${m.goals.filter(x=>x.total&&x.done>=x.total).length}/${m.goals.length} done`,m.goals.map(pg).join(''),`<span class="mini">${bar(g.t?g.d/g.t*100:0)}</span>`)}
+ if((m.inflight||[]).length){const by=k=>m.inflight.filter(s=>s.stage===k).length;
+  h+=sec('inflight','In flight',[`${m.inflight.length}`,by('review')&&by('review')+' in review',by('blocked')&&by('blocked')+' blocked'].filter(Boolean).join(' · '),`<ul class="tight">${m.inflight.map(s=>`<li>${esc(s.title)} <span class="tag t-${esc(s.stage)}">${esc(s.stage)}</span>${s.eta?` <span class="muted">${esc(s.eta)}</span>`:''}</li>`).join('')}</ul>`)}
+ if((m.budgets||[]).length){const metered=m.budgets.filter(b=>b.used!=null).length;
+  h+=sec('budgets','Budgets',`${risk.length?`${risk.length} at risk · `:''}${metered} metered · ${m.budgets.length-metered} without a meter`,m.budgets.map(b=>`<div class="row"><div>${esc(b.name)}</div>${b.used==null?'<div class="bar none"></div>':bar(b.used,bstate(b,r))}<div class="num">${b.used==null?'—':Math.round(b.used)+'%'}</div><small>${b.resets?'Resets '+esc(fmt(b.resets))+'. ':''}<span class="est">${esc(fcText(b,r))}</span>${b.detail?(fcText(b,r)?'. ':'')+esc(b.detail):''}</small></div>`).join(''))}
+ if((m.models||[]).length){const bud=n=>(m.budgets||[]).find(b=>b.name===n);
+  h+=sec('models','Models',m.models.map(x=>`${x.backend}${x.account?'/'+x.account:''}`).join(' → '),`<ol class="models">${m.models.map(x=>{const b=bud(x.budget);return `<li><div><b>${esc(x.backend)}</b>${x.account?` <span class="muted">${esc(x.account)}</span>`:''}<br><span class="mono">${esc(x.model||'')}${x.effort?' · '+esc(x.effort):''}</span></div>${b&&b.used!=null?bar(b.used,bstate(b,r)):'<div class="bar none"></div>'}<div class="num">${b&&b.used!=null?Math.round(b.used)+'%':'—'}</div>${b?`<small>${b.resets?'Resets '+esc(fmt(b.resets))+'. ':''}<span class="est">${esc(fcText(b,r))}</span></small>`:''}</li>`}).join('')}</ol>`)}
+ if((m.issues||[]).length)h+=sec('issues','Issues',`${m.issues.length} · ${esc(m.issues[0].symptom)}`,`<div class="scroll"><table class="issues"><tr><th>What happened</th><th>Cause</th><th>Fix</th></tr>${m.issues.map(x=>`<tr><td>${esc(x.symptom)}</td><td>${esc(x.cause)}</td><td>${esc(x.fix)}</td></tr>`).join('')}</table></div>`);
+ if((L.items||[]).length)h+=sec('roadmap','Roadmap',`${L.items.length} items · ${L.items.filter(i=>i.priority==='parked'||i.priority==='later').length} waiting`,roadmap(r));
  $('#main').innerHTML=h;
  $('#pick').value=idx; $('#prev').disabled=idx<=0; $('#next').disabled=idx>=D.reports.length-1;
 }
+function roadmap(r){const L=r.long;
+ L.items.forEach(i=>{i._end=new Date(Math.max(+new Date(i.end)+864e5,+new Date(i.start)+5*864e5))});const ds=L.items.flatMap(x=>[new Date(x.start),x._end]).concat([new Date(r.id)]),t0=Math.min(...ds),t1=Math.max(...ds)+864e5,span=t1-t0,x=d=>((new Date(d)-t0)/span*100);
+ const ticks=[];for(let t=new Date(t0);t<=t1;t=new Date(+t+7*864e5))ticks.push(t);
+ const lanes=L.lanes||[...new Set(L.items.map(i=>i.lane))];
+ const age=d=>d?Math.round((new Date(r.id)-new Date(d))/864e5):null;
+ return `<div class="scroll"><div class="tl">
+ <div class="axis">${ticks.map(t=>`<span style="left:${x(t)}%">${esc(fmt(t,{month:'short',day:'numeric'}))}</span>`).join('')}</div>
+ ${lanes.map(ln=>{const its=L.items.filter(i=>i.lane===ln),rows=[];its.forEach(i=>{let k=rows.findIndex(e=>e<new Date(i.start));if(k<0){k=rows.length;rows.push(0)}rows[k]=i._end;i._row=k});return `<div class="lane"><div>${esc(ln)}</div><div class="track" style="height:${Math.max(1,rows.length)*32+4}px"><div class="today" style="left:${x(r.id)}%"></div>${its.map(i=>`<div class="item p-${esc(i.priority)} s-${esc(i.state)}" style="left:${x(i.start)}%;width:${x(i._end)-x(i.start)}%;top:${i._row*32+4}px" title="${esc(i.title+(i.note?' — '+i.note:''))}">${esc(i.title)}</div>`).join('')}</div></div>`}).join('')}
+ </div></div><div class="legend"><span>Now / next</span><span class="l2">Later</span><span class="l3">Parked</span></div>
+ ${L.items.some(i=>i.priority==='parked'||i.priority==='later')?`<div class="parked"><div class="muted" style="font-size:.82rem">Waiting. Pull one forward?</div>${L.items.filter(i=>i.priority==='parked'||i.priority==='later').map(i=>`<div><span class="tag t-planned">${esc(i.priority)}</span><span>${esc(i.title)}${i.note?` <span class="muted">· ${esc(i.note)}</span>`:''}${age(i.touched)>14?` <span class="tag t-warn">${age(i.touched)} days untouched</span>`:''}</span></div>`).join('')}</div>`:''}`}
 /* search across every report: each section's text, newest first */
 function searchHTML(q){const re=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'ig'),hits=[];
- D.reports.forEach((r,i)=>['short','questions','goals','shipped','inflight','budgets','issues','roadmap'].forEach(sec=>{(md(r,sec)||'').split('\n').slice(1).forEach(line=>{if(re.test(line))hits.push({i,sec,line});re.lastIndex=0})}));
+ D.reports.forEach((r,i)=>SECS.forEach(sec=>{(md(r,sec)||'').split('\n').slice(1).forEach(line=>{if(re.test(line))hits.push({i,sec,line});re.lastIndex=0})}));
  hits.reverse(); window._hits=hits;
  return `<section class="drawer"><div class="eyebrow">${hits.length} results for “${esc(q)}”</div>${hits.length?`<div style="display:flex;gap:8px;margin:8px 0"><button class="btn" id="cpall">Copy all results</button></div>`:''}${hits.slice(0,80).map(h=>`<div class="hit"><div class="w">${esc(day(D.reports[h.i].id))}<br>${esc(h.sec)}</div><div><a data-go="${h.i}">${esc(h.line).replace(new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'ig'),m=>`<mark>${m}</mark>`)}</a></div></div>`).join('')}</section>`}
+/* lightbox */
+let lbi=0;const lbShots=()=>(D.reports[idx].medium?.shipped||[]).filter(s=>s.image);
+function lb(i){const s=lbShots();if(!s.length)return;lbi=(i+s.length)%s.length;const x=s[lbi];$('#lbimg').src=x.image;$('#lbimg').alt=x.title;$('#lbt').innerHTML=`${esc(x.title)} <span class="tag t-${esc(x.state)}">${esc(x.state)}</span>${x.note?`<small>${esc(x.note)}</small>`:''}<small>${lbi+1} of ${s.length}</small>`;if(!$('#lb').open)$('#lb').showModal()}
+$('#lbp').onclick=()=>lb(lbi-1);$('#lbn').onclick=()=>lb(lbi+1);$('#lbx').onclick=()=>$('#lb').close();
+$('#lb').addEventListener('click',e=>{if(e.target===$('#lb'))$('#lb').close()});
+$('#lb').addEventListener('keydown',e=>{if(e.key==='ArrowLeft')lb(lbi-1);else if(e.key==='ArrowRight')lb(lbi+1)});
+/* answers: one doc per report in collection "answers" */
+async function loadAnswers(){if(!db)return;try{const s=await db.collection('answers').get();saved={};s.docs.forEach(d=>{const v=d.data();if(v?.reportId)saved[v.reportId]=v});render()}catch{}}
+async function submit(f){const r=D.reports[idx],answers={};(r.questions||[]).forEach((q,i)=>{const el=f.querySelector(`input[name="q${i+1}"]:checked`);answers[i+1]=el?el.value:q.default});
+ const doc={reportId:r.id,answers,notes:f.notes.value.trim(),at:new Date().toISOString()},b=f.querySelector('[type=submit]');b.disabled=true;
+ try{await db.doc('answers/'+r.id).set(doc);saved[r.id]=doc;f.dataset.rid='';render();toast('Sent')}catch(e){b.disabled=false;if(e?.code==='invalid_argument'){canWrite=false;render()}toast('Not sent: copy the reply instead')}}
+async function initDb(){try{if(!window.claude?.use)return;const [d,u]=await Promise.all([claude.use('db'),claude.use('user')]);db=d;if(u)canWrite=await u.can('data.write');if(db){render();loadAnswers()}}catch{db=null}}
+
 async function load(){try{const res=await fetch('reports.json',{cache:'no-store'});if(!res.ok)throw 0;D=await res.json()}catch{D=JSON.parse($('#seed').textContent)}
  D.reports.sort((a,b)=>a.id<b.id?-1:1); idx=D.reports.length-1;
  const hsh=location.hash.slice(1),k=D.reports.findIndex(r=>slug(r.id)===hsh); if(k>=0)idx=k;
- $('#pick').innerHTML=D.reports.map((r,i)=>`<option value="${i}">${esc(fmt(r.id))}</option>`).join(''); render()}
-document.addEventListener('click',e=>{const t=e.target.closest('button,a,tr');if(!t)return;
- if(t.dataset.copy){copy(md(D.reports[idx],t.dataset.copy))} else if(t.dataset.text){copy(t.dataset.text)}
+ $('#pick').innerHTML=D.reports.map((r,i)=>`<option value="${i}">${esc(fmt(r.id))}</option>`).join(''); render(); initDb()}
+document.addEventListener('click',e=>{const t=e.target.closest('button,a,tr');if(!t||t.closest('dialog'))return;
+ if(t.dataset.copy){e.preventDefault();copy(md(D.reports[idx],t.dataset.copy))} else if(t.id==='cprl'){copy(reply(D.reports[idx]))}
+ else if(t.dataset.shot!=null){lb(+t.dataset.shot)}
  else if(t.id==='cpall'){copy((window._hits||[]).map(h=>`${day(D.reports[h.i].id)} · ${h.sec}: ${h.line.replace(/^[-\d. ]+/,'')}`).join('\n'))}
  else if(t.dataset.go!=null){idx=+t.dataset.go;$('#q').value='';go()}
  else if(t.dataset.i!=null){idx=+t.dataset.i;showHist=false;$('#hist').setAttribute('aria-pressed','false');go()}
- else if(t.classList.contains('hz')){hz=t.dataset.h;document.querySelectorAll('.hz').forEach(b=>b.setAttribute('aria-pressed',b===t));render()}
  else if(t.id==='hist'){showHist=!showHist;t.setAttribute('aria-pressed',showHist);render()}
  else if(t.id==='prev'&&idx>0){idx--;go()} else if(t.id==='next'&&idx<D.reports.length-1){idx++;go()}});
+document.addEventListener('toggle',e=>{const s=e.target.dataset?.sec;if(s)e.target.open?open.add(s):open.delete(s)},true);
+document.addEventListener('change',e=>{if(e.target.matches('#qf input[type=radio]'))$('#rl').textContent=reply(D.reports[idx])});
+document.addEventListener('submit',e=>{if(e.target.id==='qf'){e.preventDefault();if(db)submit(e.target)}});
 function go(){history.replaceState(null,'','#'+slug(D.reports[idx].id));render();scrollTo({top:0})}
 $('#pick').addEventListener('change',e=>{idx=+e.target.value;go()});
 let qt;$('#q').addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(render,150)});
