@@ -1,0 +1,203 @@
+<meta charset="utf-8">
+<title>Status</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a ledger. Sticky masthead (picker, search), then the newest report as three horizon bands: Now, Milestone, Roadmap timeline. History and search open as drawers over the same column. */
+:root{
+  --bg:#eef1f6; --surface:#ffffff; --sunk:#e4e8f0; --ink:#111a2e; --muted:#5a6479; --line:#d9dee8;
+  --accent:#2d6bd6; --accent-soft:rgba(45,107,214,.12); --ok:#1d9560; --warn:#b97f0c; --bad:#cf4040;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif; --body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b101b;--surface:#131a29;--sunk:#0f1522;--ink:#e7ecf5;--muted:#8e98ae;--line:#232d43;--accent:#79b4f4;--accent-soft:rgba(121,180,244,.14);--ok:#5fd29a;--warn:#efc062;--bad:#f28a8a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b101b;--surface:#131a29;--sunk:#0f1522;--ink:#e7ecf5;--muted:#8e98ae;--line:#232d43;--accent:#79b4f4;--accent-soft:rgba(121,180,244,.14);--ok:#5fd29a;--warn:#efc062;--bad:#f28a8a;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body)}
+.col{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.mast{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding-block:12px}
+.proj{font:700 1.05rem/1 var(--display);letter-spacing:-.01em;margin-right:auto}
+.ctl{display:flex;gap:6px;align-items:center}
+button,select,input{font:inherit;color:inherit}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 10px;cursor:pointer;line-height:1.2}
+.btn:hover{border-color:var(--accent)} .btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 8px;max-width:210px}
+#q{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 10px;width:min(220px,46vw)}
+main{display:grid;gap:22px;padding-block:22px 72px}
+.band{display:grid;gap:14px}
+.eyebrow{font:500 .72rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--line)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;min-width:0;position:relative}
+.copy{position:absolute;top:10px;right:10px;font-size:.75rem;padding:3px 8px;opacity:.75}
+.copy:hover{opacity:1}
+.verdict{display:grid;gap:8px;padding:22px 22px 20px}
+.state{display:inline-flex;align-items:center;gap:8px;font:600 .8rem var(--body);text-transform:uppercase;letter-spacing:.08em}
+.state i{width:9px;height:9px;border-radius:50%;background:currentColor}
+.s-on-track{color:var(--ok)} .s-at-risk{color:var(--warn)} .s-off-track{color:var(--bad)}
+h1{font:700 clamp(1.45rem,3.4vw,2.1rem)/1.12 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance;max-width:30ch}
+.when{color:var(--muted);font-size:.88rem}
+ul.tight{margin:0;padding-left:1.1rem;display:grid;gap:5px}
+.fu{display:flex;gap:8px;align-items:baseline}
+.tag{font:500 .7rem var(--mono);padding:1px 7px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.t-done,.t-live,.t-ok{color:var(--ok)} .t-open,.t-merged,.t-building,.t-review,.t-warn{color:var(--accent)} .t-dropped,.t-design,.t-planned{color:var(--muted)} .t-blocked,.t-bad{color:var(--bad)}
+ol.qs{margin:0;padding-left:1.3rem;display:grid;gap:8px}
+.opt{font-weight:600} .opt.def{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.reply{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.reply code{font:500 .95rem var(--mono);background:var(--accent-soft);color:var(--accent);padding:6px 12px;border-radius:10px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+h3{font:600 1rem/1.2 var(--display);margin:0 0 10px}
+.goal{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,160px) 52px;gap:4px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.goal:first-of-type{border-top:0;padding-top:0}
+.goal small{grid-column:1/-1;color:var(--muted);font-size:.84rem}
+.bar{height:8px;border-radius:99px;background:var(--sunk);overflow:hidden;position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--accent)}
+.bar b{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--accent);opacity:.35}
+.bar.warn i{background:var(--warn)} .bar.bad i{background:var(--bad)} .bar.ok i{background:var(--ok)}
+.num{font:500 .8rem var(--mono);color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(140px,44%),1fr));gap:12px}
+figure{margin:0;display:grid;gap:6px;min-width:0}
+figure img{width:100%;aspect-ratio:4/5;object-fit:cover;object-position:top;border-radius:10px;border:1px solid var(--line);background:var(--sunk)}
+figcaption{font-size:.82rem;line-height:1.35}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{font:500 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px}
+td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+.scroll{overflow-x:auto}
+.issue b{display:block}
+/* roadmap */
+.tl{min-width:860px;display:grid;gap:6px}
+.axis{position:relative;height:22px;margin-left:120px;border-bottom:1px solid var(--line)}
+.axis span{position:absolute;top:0;font:500 .7rem var(--mono);color:var(--muted);transform:translateX(-50%);white-space:nowrap}
+.lane{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:start}
+.lane>div:first-child{font:600 .82rem var(--display);padding-top:6px}
+.track{position:relative;border-left:1px dashed var(--line)}
+.item{position:absolute;height:26px;border-radius:8px;background:var(--accent-soft);border:1px solid var(--accent);padding:3px 8px;font-size:.76rem;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.item.p-later{background:var(--sunk);border-color:var(--line);color:var(--muted)}
+.item.p-parked{background:transparent;border:1px dashed var(--muted);color:var(--muted)}
+.item.s-done{background:color-mix(in srgb,var(--ok) 18%,transparent);border-color:var(--ok)}
+.today{position:absolute;top:0;bottom:0;width:2px;background:var(--bad);opacity:.6}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:10px}
+.legend span::before{content:"";display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--accent);background:var(--accent-soft)}
+.legend .l2::before{background:var(--sunk);border-color:var(--line)} .legend .l3::before{background:transparent;border:1px dashed var(--muted)}
+.parked{display:grid;gap:6px;margin-top:12px}
+.parked div{display:flex;gap:8px;align-items:baseline;font-size:.86rem}
+/* drawers */
+.drawer{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.hit{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;padding:8px 0;border-top:1px solid var(--line);font-size:.88rem}
+.hit:first-of-type{border-top:0}
+.hit .w{font:500 .72rem var(--mono);color:var(--muted)}
+.hit a{color:var(--accent);cursor:pointer;text-decoration:none}
+mark{background:var(--accent-soft);color:inherit;border-radius:3px;padding:0 2px}
+tr.pick{cursor:pointer} tr.pick:hover td{background:var(--accent-soft)}
+.muted{color:var(--muted)}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;font-size:.85rem}
+@media (max-width:560px){.goal{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n v" "b b" "s s"}.goal>div:first-child{grid-area:n}.goal .bar{grid-area:b}.goal .num{grid-area:v}.goal small{grid-area:s}.issues tr{display:grid;gap:2px;padding:8px 0;border-top:1px solid var(--line)}.issues td{border:0;padding:0}.issues tr:first-child{display:none}.issues td:nth-child(2)::before{content:"Cause: ";color:var(--muted)}.issues td:nth-child(3)::before{content:"Fix: ";color:var(--muted)}.issues td:first-child{font-weight:600}}
+@media (prefers-reduced-motion:no-preference){.band{animation:rise .35s ease-out both}@keyframes rise{from{transform:translateY(6px)}to{transform:none}}}
+</style>
+
+<header><div class="col mast">
+  <div class="proj" id="proj">Status</div>
+  <div class="ctl">
+    <button class="btn" id="prev" aria-label="Older report">‹</button>
+    <select id="pick" aria-label="Report"></select>
+    <button class="btn" id="next" aria-label="Newer report">›</button>
+  </div>
+  <div class="ctl" role="group" aria-label="Horizon">
+    <button class="btn hz" data-h="all" aria-pressed="true">All</button>
+    <button class="btn hz" data-h="short">Now</button>
+    <button class="btn hz" data-h="medium">Milestone</button>
+    <button class="btn hz" data-h="long">Roadmap</button>
+  </div>
+  <div class="ctl">
+    <input id="q" type="search" placeholder="Search every report" aria-label="Search every report">
+    <button class="btn" id="hist" aria-pressed="false">History</button>
+  </div>
+</div></header>
+
+<main class="col" id="main"></main>
+<div class="toast" id="toast" hidden></div>
+
+<script type="application/json" id="seed">{"project":"Status","reports":[]}</script>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let D, idx=0, hz='all', showHist=false;
+const fmt=(iso,o={month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})=>{try{return new Date(iso).toLocaleString(undefined,o)}catch{return iso}};
+const day=iso=>fmt(iso,{weekday:'short',month:'short',day:'numeric'});
+const slug=id=>'r-'+String(id).replace(/[^0-9A-Za-z]/g,'').toLowerCase();
+function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,1600)}
+async function copy(text){try{await navigator.clipboard.writeText(text);toast('Copied')}catch{const ta=document.createElement('textarea');ta.value=text;document.body.append(ta);ta.select();try{document.execCommand('copy');toast('Copied')}catch{toast('Select and copy')}ta.remove()}}
+
+/* markdown for each section, used by copy buttons and search */
+function md(r,sec){const m=r.medium||{},L=r.long||{},h=`(${day(r.id)})`;switch(sec){
+ case 'short':return `## Now ${h}\n${r.verdict?`**${r.verdict.state}**: ${r.verdict.headline}\n`:''}${(r.short?.changes||[]).map(x=>`- ${x}`).join('\n')}\n${(r.short?.followups||[]).map(f=>`- ${f.item}: ${f.outcome}${f.note?' ('+f.note+')':''}`).join('\n')}`.trim();
+ case 'questions':return `## Questions ${h}\n${(r.questions||[]).map((q,i)=>`${i+1}. ${q.q} ${q.options.map(o=>o===q.default?`**${o}**`:o).join(' / ')}`).join('\n')}\nReply: ${reply(r)}`;
+ case 'goals':return `## ${m.milestone?.name||'Milestone'} ${h}\n${(m.goals||[]).map(g=>`- ${g.name}: ${g.done}/${g.total}${g.note?' (' + g.note + ')':''}`).join('\n')}`;
+ case 'shipped':return `## Shipped ${h}\n${(m.shipped||[]).map(s=>`- ${s.title} (${s.state})`).join('\n')}`;
+ case 'inflight':return `## In flight ${h}\n${(m.inflight||[]).map(s=>`- ${s.title}: ${s.stage}${s.eta?', '+s.eta:''}`).join('\n')}`;
+ case 'budgets':return `## Budgets ${h}\n${(m.budgets||[]).map(b=>`- ${b.name}: ${b.used}% used, resets ${fmt(b.resets)}. ${b.forecast||''}`).join('\n')}`;
+ case 'issues':return `## Issues ${h}\n${(m.issues||[]).map(x=>`- ${x.symptom} — cause: ${x.cause} — fix: ${x.fix}`).join('\n')}`;
+ case 'roadmap':return `## Roadmap ${h}\n${(L.items||[]).map(x=>`- [${x.lane}] ${x.title} (${x.priority}, ${x.start}→${x.end})${x.note?': '+x.note:''}`).join('\n')}`;}}
+const reply=r=>(r.questions||[]).map((q,i)=>`${i+1} ${q.default??q.options[0]}`).join(' ');
+const cp=(sec)=>`<button class="btn copy" data-copy="${sec}" aria-label="Copy as text">Copy</button>`;
+
+function render(){const r=D.reports[idx]; if(!r){$('#main').innerHTML='<div class="card">No reports yet.</div>';return}
+ const m=r.medium||{},L=r.long||{},prev=D.reports[idx-1];
+ document.title=(D.project||'Status')+' · '+day(r.id); $('#proj').textContent=D.project||'Status';
+ const st=r.verdict?.state||'on-track';
+ let h='';
+ if(showHist){h+=`<section class="drawer"><div class="eyebrow">History</div><div class="scroll"><table><tr><th>Report</th><th>State</th><th>Headline</th><th>Goals</th><th>Asks</th></tr>${D.reports.map((x,i)=>({x,i})).reverse().map(({x,i})=>{const g=x.medium?.goals||[],d=g.reduce((a,b)=>a+(b.done||0),0),t=g.reduce((a,b)=>a+(b.total||0),0);return `<tr class="pick" data-i="${i}"><td class="num" style="text-align:left">${esc(fmt(x.id))}</td><td><span class="state s-${esc(x.verdict?.state)}"><i></i></span></td><td>${esc(x.verdict?.headline)}</td><td class="num">${t?d+'/'+t:'—'}</td><td class="num">${(x.questions||[]).length||''}</td></tr>`}).join('')}</table></div></section>`}
+ const q=$('#q').value.trim(); if(q.length>1)h+=searchHTML(q);
+ if(hz==='all'||hz==='short'){
+  h+=`<section class="band" id="now"><div class="eyebrow">Now · since ${esc(fmt(r.window?.from))}</div>
+  <div class="card verdict">${cp('short')}<span class="state s-${esc(st)}"><i></i>${esc(st.replace('-',' '))}</span><h1>${esc(r.verdict?.headline)}</h1><div class="when">${esc(fmt(r.id,{weekday:'long',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))}${m.milestone?.due?` · ${esc(m.milestone.name)} in ${Math.max(0,Math.round((new Date(m.milestone.due)-new Date(r.id))/36e5))} h`:''}</div>
+  ${(r.short?.changes||[]).length?`<ul class="tight">${r.short.changes.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>`:''}
+  ${(r.short?.followups||[]).length?`<div style="display:grid;gap:4px;margin-top:6px"><div class="muted" style="font-size:.82rem">From the last report</div>${r.short.followups.map(f=>`<div class="fu"><span class="tag t-${esc(f.outcome)}">${esc(f.outcome)}</span><span>${esc(f.item)}${f.note?` <span class="muted">· ${esc(f.note)}</span>`:''}</span></div>`).join('')}</div>`:''}</div>
+  ${(r.questions||[]).length?`<div class="card">${cp('questions')}<h3>Answer these</h3><ol class="qs">${r.questions.map(x=>`<li>${esc(x.q)} ${x.options.map(o=>`<span class="opt${o===x.default?' def':''}">${esc(o)}</span>`).join(' / ')}${x.ifUnanswered?` <span class="muted">· ${esc(x.ifUnanswered)}</span>`:''}</li>`).join('')}</ol><div class="reply"><code>${esc(reply(r))}</code><button class="btn" data-text="${esc(reply(r))}">Copy reply</button></div></div>`:''}</section>`}
+ if(hz==='all'||hz==='medium'){
+  const pg=g=>{const pct=g.total?g.done/g.total*100:0,pp=g.total&&g.prev!=null?g.prev/g.total*100:null,c=pct>=99?'ok':pct<34?'bad':pct<60?'warn':'';return `<div class="goal"><div>${esc(g.name)}</div><div class="bar ${c}">${pp!=null?`<b style="width:${pct}%"></b><i style="width:${pp}%"></i>`:`<i style="width:${pct}%"></i>`}</div><div class="num">${g.total?`${g.prev!=null&&g.prev!==g.done?g.prev+'→':''}${g.done}/${g.total}`:'—'}</div>${g.note?`<small>${esc(g.note)}</small>`:''}</div>`};
+  h+=`<section class="band" id="milestone"><div class="eyebrow">${esc(m.milestone?.name||'Milestone')}${m.milestone?.due?' · due '+esc(fmt(m.milestone.due)):''}</div>
+  ${(m.goals||[]).length?`<div class="card">${cp('goals')}<h3>Must-haves</h3>${m.goals.map(pg).join('')}</div>`:''}
+  ${(m.shipped||[]).length?`<div class="card">${cp('shipped')}<h3>Shipped</h3><div class="shots">${m.shipped.filter(s=>s.image).map(s=>`<figure><img loading="lazy" src="${esc(s.image)}" alt="${esc(s.title)}"><figcaption>${esc(s.title)} <span class="tag t-${esc(s.state)}">${esc(s.state)}</span></figcaption></figure>`).join('')}</div>${m.shipped.some(s=>!s.image)?`<ul class="tight" style="margin-top:12px">${m.shipped.filter(s=>!s.image).map(s=>`<li>${esc(s.title)} <span class="tag t-${esc(s.state)}">${esc(s.state)}</span></li>`).join('')}</ul>`:''}</div>`:''}
+  <div class="grid2">
+  ${(m.inflight||[]).length?`<div class="card">${cp('inflight')}<h3>In flight</h3><ul class="tight">${m.inflight.map(s=>`<li>${esc(s.title)} <span class="tag t-${esc(s.stage)}">${esc(s.stage)}</span>${s.eta?` <span class="muted">${esc(s.eta)}</span>`:''}</li>`).join('')}</ul></div>`:''}
+  ${(m.budgets||[]).length?`<div class="card">${cp('budgets')}<h3>Budgets</h3>${m.budgets.map(b=>`<div class="goal"><div>${esc(b.name)}</div><div class="bar ${esc(b.state)}"><i style="width:${Math.min(100,b.used)}%"></i></div><div class="num">${b.used}%</div><small>${b.resets?'Resets '+esc(fmt(b.resets))+'. ':''}${esc(b.forecast)}</small></div>`).join('')}</div>`:''}
+  </div>
+  ${(m.issues||[]).length?`<div class="card">${cp('issues')}<h3>Issues and fixes</h3><div class="scroll"><table class="issues"><tr><th>What happened</th><th>Cause</th><th>Fix</th></tr>${m.issues.map(x=>`<tr><td>${esc(x.symptom)}</td><td>${esc(x.cause)}</td><td>${esc(x.fix)}</td></tr>`).join('')}</table></div></div>`:''}</section>`}
+ if((hz==='all'||hz==='long')&&(L.items||[]).length){
+  L.items.forEach(i=>{i._end=new Date(Math.max(+new Date(i.end)+864e5,+new Date(i.start)+5*864e5))});const ds=L.items.flatMap(x=>[new Date(x.start),x._end]).concat([new Date(r.id)]),t0=Math.min(...ds),t1=Math.max(...ds)+864e5,span=t1-t0,x=d=>((new Date(d)-t0)/span*100);
+  const ticks=[];for(let t=new Date(t0);t<=t1;t=new Date(+t+7*864e5))ticks.push(t);
+  const lanes=L.lanes||[...new Set(L.items.map(i=>i.lane))];
+  const age=d=>d?Math.round((new Date(r.id)-new Date(d))/864e5):null;
+  h+=`<section class="band" id="roadmap"><div class="eyebrow">Roadmap</div><div class="card">${cp('roadmap')}<h3>Timeline</h3><div class="scroll"><div class="tl">
+  <div class="axis">${ticks.map(t=>`<span style="left:${x(t)}%">${esc(fmt(t,{month:'short',day:'numeric'}))}</span>`).join('')}</div>
+  ${lanes.map(ln=>{const its=L.items.filter(i=>i.lane===ln),rows=[];its.forEach(i=>{let k=rows.findIndex(e=>e<new Date(i.start));if(k<0){k=rows.length;rows.push(0)}rows[k]=i._end;i._row=k});return `<div class="lane"><div>${esc(ln)}</div><div class="track" style="height:${Math.max(1,rows.length)*32+4}px"><div class="today" style="left:${x(r.id)}%"></div>${its.map(i=>`<div class="item p-${esc(i.priority)} s-${esc(i.state)}" style="left:${x(i.start)}%;width:${x(i._end)-x(i.start)}%;top:${i._row*32+4}px" title="${esc(i.title+(i.note?' — '+i.note:''))}">${esc(i.title)}</div>`).join('')}</div></div>`}).join('')}
+  </div></div><div class="legend"><span>Now / next</span><span class="l2">Later</span><span class="l3">Parked</span></div>
+  ${L.items.some(i=>i.priority==='parked'||i.priority==='later')?`<div class="parked"><div class="muted" style="font-size:.82rem">Waiting. Pull one forward?</div>${L.items.filter(i=>i.priority==='parked'||i.priority==='later').map(i=>`<div><span class="tag t-planned">${esc(i.priority)}</span><span>${esc(i.title)}${i.note?` <span class="muted">· ${esc(i.note)}</span>`:''}${age(i.touched)>14?` <span class="tag t-warn">${age(i.touched)} days untouched</span>`:''}</span></div>`).join('')}</div>`:''}</div></section>`}
+ $('#main').innerHTML=h;
+ $('#pick').value=idx; $('#prev').disabled=idx<=0; $('#next').disabled=idx>=D.reports.length-1;
+}
+/* search across every report: each section's text, newest first */
+function searchHTML(q){const re=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'ig'),hits=[];
+ D.reports.forEach((r,i)=>['short','questions','goals','shipped','inflight','budgets','issues','roadmap'].forEach(sec=>{(md(r,sec)||'').split('\n').slice(1).forEach(line=>{if(re.test(line))hits.push({i,sec,line});re.lastIndex=0})}));
+ hits.reverse(); window._hits=hits;
+ return `<section class="drawer"><div class="eyebrow">${hits.length} results for “${esc(q)}”</div>${hits.length?`<div style="display:flex;gap:8px;margin:8px 0"><button class="btn" id="cpall">Copy all results</button></div>`:''}${hits.slice(0,80).map(h=>`<div class="hit"><div class="w">${esc(day(D.reports[h.i].id))}<br>${esc(h.sec)}</div><div><a data-go="${h.i}">${esc(h.line).replace(new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'ig'),m=>`<mark>${m}</mark>`)}</a></div></div>`).join('')}</section>`}
+async function load(){try{const res=await fetch('reports.json',{cache:'no-store'});if(!res.ok)throw 0;D=await res.json()}catch{D=JSON.parse($('#seed').textContent)}
+ D.reports.sort((a,b)=>a.id<b.id?-1:1); idx=D.reports.length-1;
+ const hsh=location.hash.slice(1),k=D.reports.findIndex(r=>slug(r.id)===hsh); if(k>=0)idx=k;
+ $('#pick').innerHTML=D.reports.map((r,i)=>`<option value="${i}">${esc(fmt(r.id))}</option>`).join(''); render()}
+document.addEventListener('click',e=>{const t=e.target.closest('button,a,tr');if(!t)return;
+ if(t.dataset.copy){copy(md(D.reports[idx],t.dataset.copy))} else if(t.dataset.text){copy(t.dataset.text)}
+ else if(t.id==='cpall'){copy((window._hits||[]).map(h=>`${day(D.reports[h.i].id)} · ${h.sec}: ${h.line.replace(/^[-\d. ]+/,'')}`).join('\n'))}
+ else if(t.dataset.go!=null){idx=+t.dataset.go;$('#q').value='';go()}
+ else if(t.dataset.i!=null){idx=+t.dataset.i;showHist=false;$('#hist').setAttribute('aria-pressed','false');go()}
+ else if(t.classList.contains('hz')){hz=t.dataset.h;document.querySelectorAll('.hz').forEach(b=>b.setAttribute('aria-pressed',b===t));render()}
+ else if(t.id==='hist'){showHist=!showHist;t.setAttribute('aria-pressed',showHist);render()}
+ else if(t.id==='prev'&&idx>0){idx--;go()} else if(t.id==='next'&&idx<D.reports.length-1){idx++;go()}});
+function go(){history.replaceState(null,'','#'+slug(D.reports[idx].id));render();scrollTo({top:0})}
+$('#pick').addEventListener('change',e=>{idx=+e.target.value;go()});
+let qt;$('#q').addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(render,150)});
+addEventListener('hashchange',()=>{const k=D.reports.findIndex(r=>slug(r.id)===location.hash.slice(1));if(k>=0&&k!==idx){idx=k;render()}});
+load();
+</script>
